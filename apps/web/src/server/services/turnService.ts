@@ -1,13 +1,14 @@
 // TurnService：回合处理管线（docs/02 §3）
 // 意图归一 → 引擎结算 → 罗盘生成 → LLM 叙事（先算后写/模板降级）→ 持久化
 import {
-  addCultivationExp, buildBriefing, createRng, evolveWorld, expToNextLevel,
+  addCultivationExp, applyInteraction, buildBriefing, createRng, evolveWorld, expToNextLevel,
   generateCompass, hashSeed, parseIntent, realmOfLevel, resolveCombat,
   rollDomainSeeds, truePower,
 } from "@xunxian/engine";
 import type { CompassOption } from "@xunxian/engine";
 import type { PlayerState } from "@xunxian/shared";
 import { store } from "../store.js";
+import type { StoredRelation } from "../store.js";
 import { buildProviderFromEnv, NarrativeService } from "../llm/index.js";
 import { ServiceError } from "./archiveService.js";
 
@@ -119,6 +120,7 @@ export interface SettlementView {
     levelsGained: number;
     realmName: string;
     combat?: unknown;
+    relation?: { npcName: string; intimacy: number; tier: number };
   };
   state: PlayerState;
 }
@@ -165,6 +167,23 @@ export async function submitAction(
   }
   const outcome = settleAction(state, option, rng);
 
+  // 道缘经营：社交往来结算（十一章三：成功往来 +5~15 亲密度）
+  let relationDelta: { npcName: string; intimacy: number; tier: number } | undefined;
+  if (option.kind === "daoyuan") {
+    const relations = await store.getRelations(archiveId);
+    const npcs = await store.getNpcs(archiveId);
+    if (relations.length > 0) {
+      const pick = relations[rng.int(0, relations.length)]!;
+      const npc = npcs.find((n) => n.id === pick.npcId);
+      const after = applyInteraction(pick, true, rng);
+      const updated: StoredRelation[] = relations.map((r) =>
+        r.npcId === pick.npcId ? { ...after, npcId: pick.npcId } : r,
+      );
+      await store.saveRelations(archiveId, updated);
+      relationDelta = { npcName: npc?.name ?? "故人", intimacy: after.intimacy - pick.intimacy, tier: after.tier };
+    }
+  }
+
   // 应用结算（战斗失败的修为倒退在 resolvedCultivation 中统一处理）
   const updated: PlayerState = {
     ...state,
@@ -176,6 +195,7 @@ export async function submitAction(
     cultivationGain: outcome.cultivationGain,
     levelsGained: outcome.levelsGained,
     combat: outcome.combatResult,
+    relation: relationDelta,
     nextMonth: state.gameMonth + 1,
   });
 
@@ -183,7 +203,7 @@ export async function submitAction(
   await store.appendTurnRecord({
     archiveId, turnNo, seed: monthSeed(archiveId, turnNo),
     actionKind: outcome.actionKind, actionInput: { option: option.idx, label: option.label },
-    engineDelta: { cultivationGain: outcome.cultivationGain, levelsGained: outcome.levelsGained },
+    engineDelta: { cultivationGain: outcome.cultivationGain, levelsGained: outcome.levelsGained, relation: relationDelta },
     narrative: nar.narrative, modelMeta: nar.modelMeta,
   });
 
@@ -196,6 +216,7 @@ export async function submitAction(
       levelsGained: outcome.levelsGained,
       realmName: realmOfLevel(updated.cultivation.level).name,
       combat: outcome.combatResult,
+      relation: relationDelta,
     },
     state: updated,
   };

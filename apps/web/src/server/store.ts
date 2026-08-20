@@ -1,6 +1,10 @@
 // 存储选择：配置 DATABASE_URL → PostgreSQL（DrizzleStore），否则内存实现（开发兜底）
 import type { PlayerState } from "@xunxian/shared";
-import type { CompassOption } from "@xunxian/engine";
+import type { CompassOption, NpcProfile, RelationState } from "@xunxian/engine";
+
+export interface StoredRelation extends RelationState {
+  npcId: string;
+}
 
 export interface ArchiveMeta {
   id: string;
@@ -46,6 +50,10 @@ export interface GameStore {
   getInventory(archiveId: string): Promise<InventoryItem[]>;
   addItem(archiveId: string, item: Omit<InventoryItem, "acquiredTurn">, turnNo: number): Promise<void>;
   spendCurrency(archiveId: string, amount: number): Promise<boolean>;
+  getNpcs(archiveId: string): Promise<NpcProfile[]>;
+  saveNpcs(archiveId: string, npcs: NpcProfile[]): Promise<void>;
+  getRelations(archiveId: string): Promise<StoredRelation[]>;
+  saveRelations(archiveId: string, relations: StoredRelation[]): Promise<void>;
 }
 
 class MemoryStore implements GameStore {
@@ -54,6 +62,8 @@ class MemoryStore implements GameStore {
   private compass = new Map<string, CompassOption[]>();
   private turns = new Map<string, TurnRecord>();
   private inventory = new Map<string, InventoryItem[]>();
+  private npcs = new Map<string, NpcProfile[]>();
+  private relations = new Map<string, StoredRelation[]>();
 
   async createArchive(meta: ArchiveMeta, state: PlayerState) {
     this.archives.set(meta.id, meta);
@@ -107,6 +117,18 @@ class MemoryStore implements GameStore {
     state.currencies = { ...state.currencies, low: balance - amount };
     this.states.set(archiveId, state);
     return true;
+  }
+  async getNpcs(archiveId: string) {
+    return this.npcs.get(archiveId) ?? [];
+  }
+  async saveNpcs(archiveId: string, npcs: NpcProfile[]) {
+    this.npcs.set(archiveId, npcs);
+  }
+  async getRelations(archiveId: string) {
+    return this.relations.get(archiveId) ?? [];
+  }
+  async saveRelations(archiveId: string, relations: StoredRelation[]) {
+    this.relations.set(archiveId, relations);
   }
 }
 

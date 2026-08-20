@@ -70,6 +70,7 @@ export interface NarrativeInput {
   cultivationGain: number;
   levelsGained: number;
   combat?: CombatResult;
+  relation?: { npcName: string; intimacy: number; tier: number };
   currencyDelta?: Partial<Record<string, number>>;
   nextMonth: number;
 }
@@ -125,6 +126,11 @@ function buildFacts(input: NarrativeInput) {
       命运骰子: input.combat.dice.face,
       隐性氛围: HIDDEN_FEEDBACK_TEXT[input.combat.hiddenFeedback],
       惩罚: input.combat.punishApplied,
+    } : null,
+    道缘变动: input.relation ? {
+      对象: input.relation.npcName,
+      亲密度变化: input.relation.intimacy > 0 ? `+${input.relation.intimacy}` : String(input.relation.intimacy),
+      关系层级: ["陌路", "一面之缘", "熟识", "道友", "心腹/道侣"][input.relation.tier],
     } : null,
   };
 }

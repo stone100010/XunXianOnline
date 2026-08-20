@@ -3,9 +3,9 @@ import { and, asc, eq, sql } from "drizzle-orm";
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import pg from "pg";
 import type { PlayerState } from "@xunxian/shared";
-import type { CompassOption } from "@xunxian/engine";
+import type { CompassOption, NpcProfile } from "@xunxian/engine";
 import { archives, compassOptions, devices, playerStates, turnRecords } from "./schema.js";
-import type { ArchiveMeta, GameStore, InventoryItem, TurnRecord } from "../store.js";
+import type { ArchiveMeta, GameStore, InventoryItem, StoredRelation, TurnRecord } from "../store.js";
 
 // inventory 简表（v0 与内存实现等价；后续迁移至专门表）
 const INVENTORY_DDL = `
@@ -81,6 +81,10 @@ export class DrizzleStore implements GameStore {
     await this.db.execute(sql`CREATE TABLE IF NOT EXISTS archives_extra (
       archive_id uuid PRIMARY KEY,
       inventory jsonb NOT NULL DEFAULT '[]')`);
+    await this.db.execute(sql`CREATE TABLE IF NOT EXISTS world_snapshots (
+      archive_id uuid PRIMARY KEY,
+      npcs jsonb NOT NULL DEFAULT '[]',
+      relations jsonb NOT NULL DEFAULT '[]')`);
     await this.db.execute(INVENTORY_DDL);
     } finally {
       await this.db.execute(sql`SELECT pg_advisory_unlock(92021001)`);
@@ -210,5 +214,35 @@ export class DrizzleStore implements GameStore {
     state.currencies = { ...state.currencies, low: balance - amount };
     await this.savePlayerState(archiveId, state);
     return true;
+  }
+
+  private async snapshot<T>(archiveId: string, column: "npcs" | "relations"): Promise<T[]> {
+    const res = await this.pool.query<{ npcs: unknown; relations: unknown }>(
+      `SELECT npcs, relations FROM world_snapshots WHERE archive_id = $1`, [archiveId]);
+    const row = res.rows[0];
+    return ((row?.[column] as T[]) ?? []);
+  }
+
+  private async upsertSnapshot(archiveId: string, column: "npcs" | "relations", value: unknown): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO world_snapshots (archive_id, ${column}) VALUES ($1, $2)
+       ON CONFLICT (archive_id) DO UPDATE SET ${column} = $2`,
+      [archiveId, JSON.stringify(value)]);
+  }
+
+  async getNpcs(archiveId: string): Promise<NpcProfile[]> {
+    return this.snapshot<NpcProfile>(archiveId, "npcs");
+  }
+
+  async saveNpcs(archiveId: string, npcs: NpcProfile[]): Promise<void> {
+    await this.upsertSnapshot(archiveId, "npcs", npcs);
+  }
+
+  async getRelations(archiveId: string): Promise<StoredRelation[]> {
+    return this.snapshot<StoredRelation>(archiveId, "relations");
+  }
+
+  async saveRelations(archiveId: string, relations: StoredRelation[]): Promise<void> {
+    await this.upsertSnapshot(archiveId, "relations", relations);
   }
 }

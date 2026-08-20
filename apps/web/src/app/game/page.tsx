@@ -39,7 +39,7 @@ function GameInner() {
   const [settle, setSettle] = useState<Settlement | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  const [tab, setTab] = useState<"month" | "market" | "bag">("month");
+  const [tab, setTab] = useState<"month" | "market" | "bag" | "npc">("month");
   const [shelf, setShelf] = useState<{ tierName: string; items: { key: string; name: string; price: number; desc: string; grade: number }[]; discountRate: number } | null>(null);
   const [bag, setBag] = useState<{ key: string; name: string; qty: number; category: string }[] | null>(null);
   const [marketMsg, setMarketMsg] = useState("");
@@ -50,6 +50,12 @@ function GameInner() {
     const json = await res.json();
     if (!res.ok) { setMarketMsg(json.error?.message ?? "无法进入"); setShelf(null); return; }
     setShelf(json.shelf);
+  }
+  const [npcList, setNpcList] = useState<{ name: string; profession: string; realmLevel: number; traits: string[]; goal: string; intimacy: number; tierName: string }[] | null>(null);
+  async function openNpcs() {
+    const res = await fetch(`/api/archives/${archiveId}/npcs`);
+    const json = await res.json();
+    setNpcList(json.relations ?? []);
   }
   async function openBag() {
     const res = await fetch(`/api/archives/${archiveId}/market?what=inventory`);
@@ -149,8 +155,8 @@ function GameInner() {
 
       {/* 页签 */}
       <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-        {([["month", "🌙 本月"], ["market", "🏪 坊市"], ["bag", "🎒 背包"]] as const).map(([k, label]) => (
-          <button key={k} onClick={() => { setTab(k); if (k === "bag") void openBag(); if (k === "market" && !shelf) void openMarket("zhengshi"); }}
+        {([["month", "🌙 本月"], ["market", "🏪 坊市"], ["bag", "🎒 背包"], ["npc", "👥 道缘"]] as const).map(([k, label]) => (
+          <button key={k} onClick={() => { setTab(k); if (k === "bag") void openBag(); if (k === "market" && !shelf) void openMarket("zhengshi"); if (k === "npc") void openNpcs(); }}
             style={{ flex: 1, padding: 10, borderRadius: 8, border: tab === k ? "1px solid var(--gold)" : "1px solid var(--gold-dim)", background: tab === k ? "#c8a24b22" : "#0000", color: tab === k ? "var(--gold)" : "var(--ink-dim)", fontSize: 14 }}>
             {label}
           </button>
@@ -187,6 +193,28 @@ function GameInner() {
             <div key={it.key} style={{ display: "flex", justifyContent: "space-between", marginTop: 8, fontSize: 14 }}>
               <span>{it.name}</span>
               <span style={{ color: "var(--ink-dim)" }}>×{it.qty}｜{it.category}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {tab === "npc" && (
+        <div className="card">
+          <div style={{ textAlign: "center", color: "var(--gold)" }}>👥【道缘网络】</div>
+          {npcList && npcList.length === 0 && <p style={{ fontSize: 13, color: "var(--ink-dim)", marginTop: 8 }}>尚未结识任何人。</p>}
+          {npcList?.map((n) => (
+            <div key={n.name} className="card" style={{ margin: "10px 0 0" }}>
+              <div style={{ fontSize: 14 }}><b>{n.name}</b> ｜ {n.profession} ｜ Lv.{n.realmLevel}</div>
+              <div style={{ fontSize: 12, color: "var(--ink-dim)", marginTop: 4 }}>
+                性格：{n.traits.join("·")} ｜ 志向：{n.goal}
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, fontSize: 13 }}>
+                <span>🤝 {n.tierName}</span>
+                <span style={{ color: "var(--gold)" }}>好感 {n.intimacy}</span>
+              </div>
+              <div style={{ height: 6, background: "#ffffff12", borderRadius: 3, marginTop: 4 }}>
+                <div style={{ height: 6, width: `${n.intimacy}%`, background: "var(--gold)", borderRadius: 3 }} />
+              </div>
             </div>
           ))}
         </div>

@@ -1,5 +1,5 @@
 // ArchiveService：建角入库 + 道果码恢复（docs/07 API 契约）
-import { createCharacter, createRng, hashSeed } from "@xunxian/engine";
+import { createCharacter, createRng, generateNpc, hashSeed } from "@xunxian/engine";
 import type { CreateCharacterInput } from "@xunxian/engine";
 import { store, type ArchiveMeta } from "../store.js";
 import { generateDaoFruitCode, isValidDaoFruitCode } from "../daoFruitCode.js";
@@ -30,6 +30,15 @@ export async function createArchive(deviceId: string, slot: number, input: Creat
     seed, createdAt: Date.now(),
   };
   await store.createArchive(meta, state);
+
+  // 初始可结识之人（设定·二章三）：10-15 位随机 NPC，好感 5-40
+  const count = 10 + rng.int(0, 6);
+  const npcs = Array.from({ length: count }, () => generateNpc(rng, { domain: input.domain }));
+  const relations = npcs.map((n) => ({
+    npcId: n.id, tier: 0 as const, intimacy: rng.int(5, 41), interactions: 0, sharedEvents: 0,
+  }));
+  await store.saveNpcs(archiveId, npcs);
+  await store.saveRelations(archiveId, relations);
   return meta;
 }
 
