@@ -58,6 +58,18 @@ function GameInner() {
     setShelf(json.shelf);
   }
   const [npcList, setNpcList] = useState<{ name: string; profession: string; realmLevel: number; traits: string[]; goal: string; intimacy: number; tierName: string }[] | null>(null);
+  const [finaleReview, setFinaleReview] = useState<{ title: string; overview: { storylineName: string; years: number; finalRealm: string; finalChoice: string }; rewards: string[]; ending: string } | null>(null);
+  const [finaleTitle, setFinaleTitle] = useState("");
+  async function submitFinale() {
+    if (finaleTitle.trim().length < 2) { setErr("封号须为 2-8 字"); return; }
+    const res = await fetch(`/api/archives/${archiveId}/finale`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ title: finaleTitle.trim() }),
+    });
+    const json = await res.json();
+    if (!res.ok) { setErr(json.error?.message ?? "终章失败"); return; }
+    setFinaleReview(json);
+  }
   const [btResult, setBtResult] = useState<{ success: boolean; rate: number; narrative: string; realmName: string } | null>(null);
   const [btBusy, setBtBusy] = useState(false);
   async function attemptBreakthrough() {
@@ -277,6 +289,38 @@ function GameInner() {
             <div style={{ marginTop: 6, fontSize: 12, color: "var(--ink-dim)" }}>
               已获：{view.destiny.rewards.slice(-3).join("；")}
             </div>
+          )}
+        </div>
+      )}
+
+      {view.destiny?.phase === "finale" && !finaleReview && (
+        <div className="card" style={{ borderColor: "var(--gold)" }}>
+          <div style={{ textAlign: "center", color: "var(--gold)", fontSize: 15, fontWeight: 700 }}>
+            ✨⋆｡°✩ ༺ 天 命 终 幕 ༻ ✩°｡⋆✨
+          </div>
+          <p style={{ fontSize: 12, color: "var(--ink-dim)", marginTop: 8 }}>
+            六阶天命已圆满。为你的仙途命名一个 2-8 字封号，它将铭刻于此界史册，不可更改。
+          </p>
+          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+            <input value={finaleTitle} onChange={(e) => setFinaleTitle(e.target.value)} placeholder="如：万古青莲仙尊"
+              style={{ flex: 1, background: "#0000", border: "1px solid var(--gold)", borderRadius: 6, padding: "8px 10px", color: "var(--ink)" }} />
+            <button onClick={submitFinale} style={{ background: "var(--gold)", color: "#111", border: 0, borderRadius: 6, padding: "8px 14px", fontWeight: 600 }}>
+              铭刻
+            </button>
+          </div>
+        </div>
+      )}
+      {finaleReview && (
+        <div className="card" style={{ borderColor: "var(--gold)" }}>
+          <div style={{ textAlign: "center", color: "var(--gold)", fontSize: 16, fontWeight: 700 }}>
+            ༺ {finaleReview.title} ༻
+          </div>
+          <div style={{ marginTop: 8, fontSize: 12, color: "var(--ink-dim)", textAlign: "center" }}>
+            天命·{finaleReview.overview.storylineName} ｜ 历时 {finaleReview.overview.years} 年 ｜ 终境 {finaleReview.overview.finalRealm}
+          </div>
+          <div style={{ whiteSpace: "pre-wrap", marginTop: 10, fontSize: 13, lineHeight: 1.9 }}>{finaleReview.ending}</div>
+          {finaleReview.rewards.length > 0 && (
+            <div style={{ marginTop: 8, fontSize: 12, color: "var(--gold)" }}>🏅 天命奖励：{finaleReview.rewards.join("；")}</div>
           )}
         </div>
       )}

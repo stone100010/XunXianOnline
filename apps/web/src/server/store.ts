@@ -57,6 +57,7 @@ export interface GameStore {
   saveRelations(archiveId: string, relations: StoredRelation[]): Promise<void>;
   getDestiny(archiveId: string): Promise<DestinyProgress | null>;
   saveDestiny(archiveId: string, destiny: DestinyProgress): Promise<void>;
+  updateArchiveStatus(archiveId: string, status: string): Promise<void>;
 }
 
 export interface DestinyProgress {
@@ -154,6 +155,10 @@ class MemoryStore implements GameStore {
   }
   async saveDestiny(archiveId: string, destiny: DestinyProgress) {
     this.destiny.set(archiveId, destiny);
+  }
+  async updateArchiveStatus(archiveId: string, status: string) {
+    const a = this.archives.get(archiveId);
+    if (a) this.archives.set(archiveId, { ...a, status });
   }
 }
 

@@ -271,4 +271,8 @@ export class DrizzleStore implements GameStore {
   async saveDestiny(archiveId: string, destiny: DestinyProgress): Promise<void> {
     await this.upsertSnapshot(archiveId, "destiny", destiny);
   }
+
+  async updateArchiveStatus(archiveId: string, status: string): Promise<void> {
+    await this.db.update(archives).set({ status, updatedAt: new Date() }).where(eq(archives.id, archiveId));
+  }
 }
