@@ -14,9 +14,14 @@ interface TurnView {
 }
 interface Settlement {
   turnNo: number; narrative: string; degraded: boolean;
-  delta: { cultivationGain: number; levelsGained: number; realmName: string; combat?: CombatResult };
+  delta: { cultivationGain: number; levelsGained: number; realmName: string; combat?: CombatResult; relation?: { npcName: string; intimacy: number; tier: number } };
   state: PlayerState;
 }
+
+const DICE_FACES: Record<string, string> = {
+  tianci: "⚡", hongyun: "🌟", jiyuan: "🍀", zhonggui: "⚖️",
+  bozhe: "🌫️", shiyun: "💨", tianyi: "💀",
+};
 
 const KIND_LABEL: Record<string, string> = {
   mingtu: "🌌 命途推进", yinyuan: "🪷 因缘际会", lishi: "🗺️ 历练探索",
@@ -270,6 +275,29 @@ function GameInner() {
           {settle.delta.levelsGained > 0 && (
             <div style={{ color: "var(--jade)", marginTop: 8 }}>✨ 连破 {settle.delta.levelsGained} 层！</div>
           )}
+          {settle.delta.relation && (
+            <div style={{ marginTop: 8, fontSize: 13, color: "var(--gold)" }}>
+              🤝 与 {settle.delta.relation.npcName} 往来，好感 {settle.delta.relation.intimacy > 0 ? "+" : ""}{settle.delta.relation.intimacy}
+            </div>
+          )}
+          {settle.delta.combat && (() => {
+            const c = settle.delta.combat!;
+            return (
+              <div className="card" style={{ marginTop: 12, borderColor: c.outcome === "win" ? "var(--jade)" : "var(--cinnabar)" }}>
+                <div style={{ textAlign: "center", fontSize: 13, color: "var(--ink-dim)" }}>⚔️ 斗法结算</div>
+                <div style={{ textAlign: "center", margin: "10px 0", fontSize: 40 }} className="dice-roll">
+                  {DICE_FACES[c.dice.face] ?? "🎲"}
+                </div>
+                <div style={{ textAlign: "center", fontSize: 13 }}>
+                  对手：{c.foe.name}（战力 {c.foePower}）｜ 你（战力 {c.playerPower}）
+                </div>
+                <div style={{ textAlign: "center", marginTop: 6, fontSize: 18, fontWeight: 700, color: c.outcome === "win" ? "var(--jade)" : "var(--cinnabar)" }}>
+                  {c.outcome === "win" ? "🎉 胜" : "💀 败"}
+                  {c.punishApplied ? <span style={{ fontSize: 12, color: "var(--ink-dim)" }}>｜修为 -{c.punishApplied.realmLoss} 级</span> : null}
+                </div>
+              </div>
+            );
+          })()}
           <button onClick={next} disabled={busy}
             style={{ width: "100%", marginTop: 14, padding: 14, borderRadius: 8, border: 0, background: "var(--gold)", color: "#111", fontSize: 16, fontWeight: 600 }}>
             {busy ? "演化世界中…" : "🌙 进入下月"}

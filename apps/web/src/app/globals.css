@@ -39,3 +39,15 @@ a {
   padding: 16px;
   margin-top: 12px;
 }
+
+
+@keyframes diceRoll {
+  0% { transform: rotate(0) scale(1.4); filter: blur(2px); }
+  60% { transform: rotate(360deg) scale(1.2); filter: blur(1px); }
+  100% { transform: rotate(720deg) scale(1); filter: none; }
+}
+.dice-roll { animation: diceRoll 1.2s ease-out; }
+
+@media (prefers-reduced-motion: reduce) {
+  .dice-roll { animation: none; }
+}
