@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>寻仙 · 管理后台 v0.1.1（暗色）</title>
+<style>
+/* ═════ 寻仙 管理后台 v0.1.1 · 暗色仙侠风 ═════
+   多端：桌面左侧导航 / 移动底部Tab+抽屉 · 九模块 · 全模拟数据 */
+:root{
+  --bg:#0b0f14;--bg2:#0e141b;--card:#121a23;--card2:#0f1620;
+  --line:#1f2a37;--line2:#2a3a4d;
+  --ink:#e8e3d5;--dim:#8d97a5;--faint:#5d6878;
+  --gold:#c8a24b;--gold-bg:rgba(200,162,75,.12);--gold-line:rgba(200,162,75,.35);
+  --blue:#5b8dd6;--blue-bg:rgba(91,141,214,.14);
+  --jade:#3f9d7a;--jade-bg:rgba(63,157,122,.14);
+  --red:#d05040;--red-bg:rgba(208,80,64,.13);
+  --purple:#9d7ede;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:radial-gradient(ellipse 120% 60% at 15% -10%,#151f2b 0%,var(--bg) 55%),var(--bg);
+  color:var(--ink);font-family:"system-ui","Microsoft YaHei",sans-serif;font-size:13px;min-height:100vh}
+button{font-family:inherit;cursor:pointer}
+::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-thumb{background:#2a3a4d;border-radius:3px}
+a{color:var(--blue)}
+
+#app{display:grid;grid-template-columns:220px 1fr;min-height:100vh}
+/* ── 侧导航 ── */
+#side{background:#0a0e13;border-right:1px solid var(--line);position:sticky;top:0;height:100vh;overflow-y:auto;z-index:50}
+#side .logo{padding:16px 14px 12px;color:var(--gold);font-weight:700;font-size:15px;letter-spacing:2px;font-family:"Noto Serif SC",serif}
+#side .logo small{display:block;color:var(--faint);font-size:10px;font-weight:400;margin-top:2px;letter-spacing:0}
+.group{padding:10px 14px 4px;font-size:10px;color:var(--faint);letter-spacing:2px}
+.nv{display:flex;align-items:center;gap:9px;padding:9px 12px;margin:1px 8px;border-radius:8px;color:var(--dim);font-size:13px;cursor:pointer;border:none;background:none;width:calc(100% - 16px);text-align:left;transition:.15s}
+.nv:hover{background:#131c27;color:var(--ink)}
+.nv.on{background:linear-gradient(90deg,rgba(200,162,75,.16),rgba(200,162,75,.04));color:var(--gold);box-shadow:inset 2px 0 0 var(--gold)}
+.nv .badge{margin-left:auto;background:var(--red);color:#fff;font-size:9px;border-radius:99px;padding:1px 6px}
+#side .foot{margin-top:auto;padding:14px;font-size:10px;color:var(--faint);border-top:1px solid var(--line)}
+
+#wrap{display:flex;flex-direction:column;min-width:0}
+#hd{position:sticky;top:0;z-index:20;background:rgba(11,15,20,.9);backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--line);padding:0 18px;height:54px;display:flex;align-items:center;gap:12px}
+#hd .crumb{font-weight:600;font-family:"Noto Serif SC",serif}
+#hd .crumb small{color:var(--dim);font-weight:400}
+#hd .search{flex:1;max-width:340px;margin-left:auto;height:34px;border:1px solid var(--line2);border-radius:9px;
+  background:var(--card2);display:flex;align-items:center;padding:0 12px;color:var(--faint);font-size:12px}
+.env{padding:3px 10px;border-radius:99px;font-size:11px;background:var(--jade-bg);color:var(--jade);border:1px solid rgba(63,157,122,.4)}
+#burger{display:none;border:1px solid var(--line2);background:var(--card2);color:var(--ink);border-radius:8px;width:34px;height:34px;font-size:15px}
+main{padding:16px 18px 84px;max-width:1220px;width:100%;margin:0 auto}
+section{display:none}section.on{display:block;animation:fade .3s}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}}
+
+/* ── 组件 ── */
+h2{font-size:17px;margin-bottom:4px;font-family:"Noto Serif SC",serif;color:var(--gold)}
+h2 small{font-size:11px;color:var(--dim);font-weight:400;margin-left:10px;font-family:system-ui}
+.desc{color:var(--dim);font-size:12px;margin-bottom:14px}
+.grid{display:grid;gap:12px}
+.kpis{grid-template-columns:repeat(5,1fr)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.row3{display:grid;grid-template-columns:3fr 2fr;gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:14px}
+.kpi{position:relative;overflow:hidden}
+.kpi::after{content:"";position:absolute;right:-14px;top:-14px;width:60px;height:60px;border-radius:50%;background:radial-gradient(circle,rgba(200,162,75,.10),transparent 70%)}
+.kpi .l{font-size:11px;color:var(--dim)}
+.kpi .v{font-size:23px;font-weight:700;margin-top:5px;font-variant-numeric:tabular-nums;font-family:"Noto Serif SC",serif}
+.kpi .d{font-size:10px;margin-top:3px}.up{color:var(--jade)}.dn{color:var(--red)}
+.kpi.warn .v{color:var(--red)}
+.h3{font-size:13px;font-weight:600;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
+.h3 .more{font-size:11px;color:var(--blue);font-weight:400;cursor:pointer}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;color:var(--faint);font-weight:500;padding:8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:9px 8px;border-bottom:1px solid #151d27;vertical-align:middle}
+tbody tr{transition:.12s}tbody tr:hover td{background:rgba(255,255,255,.025)}
+.pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:10px;white-space:nowrap}
+.p-green{background:var(--jade-bg);color:#6fc7a4}.p-gold{background:var(--gold-bg);color:var(--gold)}
+.p-red{background:var(--red-bg);color:#e08a7d}.p-blue{background:var(--blue-bg);color:#8db2e8}
+.p-gray{background:rgba(255,255,255,.06);color:var(--dim)}.p-purple{background:rgba(157,126,222,.14);color:#c0a4ee}
+.btn{border:1px solid var(--line2);background:var(--card2);color:var(--ink);border-radius:8px;padding:6px 14px;font-size:12px;transition:.15s}
+.btn:hover{border-color:var(--gold-line)}
+.btn.pri{background:linear-gradient(135deg,#d9b45f,#a97f2e);border:none;color:#151006;font-weight:600}
+.btn.danger{border-color:rgba(208,80,64,.4);color:#e08a7d}
+.btn.mini{padding:3px 10px;font-size:11px}
+input,select,textarea{font-family:inherit;font-size:12px;border:1px solid var(--line2);border-radius:8px;padding:7px 10px;background:var(--card2);color:var(--ink);outline:none}
+input:focus,select:focus{border-color:var(--gold)}
+option{background:var(--card2)}
+.seg{display:inline-flex;border:1px solid var(--line2);border-radius:8px;overflow:hidden}
+.seg button{border:none;background:none;color:var(--dim);padding:5px 13px;font-size:11px}
+.seg button.on{background:var(--gold-bg);color:var(--gold)}
+/* 图表 */
+.bars{display:flex;align-items:flex-end;gap:8px;height:120px;padding-top:6px}
+.bars .b{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end;position:relative}
+.bars .b i{width:70%;background:linear-gradient(180deg,#7ea3e8,#3d6fd6);border-radius:4px 4px 0 0;transition:.4s;position:relative}
+.bars .b i:hover{filter:brightness(1.3)}
+.bars .b i .tip{position:absolute;top:-24px;left:50%;transform:translateX(-50%);background:#060a0e;border:1px solid var(--gold-line);color:var(--gold);font-size:10px;padding:2px 8px;border-radius:6px;opacity:0;transition:.15s;white-space:nowrap;pointer-events:none}
+.bars .b i:hover .tip{opacity:1}
+.bars .b span{font-size:9px;color:var(--faint)}
+.spark{stroke:#5b8dd6;fill:none;stroke-width:2}
+.spark2{stroke:var(--gold);fill:none;stroke-width:2;stroke-dasharray:5 3}
+.funnel .f{display:flex;align-items:center;gap:8px;font-size:11px;margin-bottom:6px}
+.funnel .f .lab{width:96px;color:var(--dim);flex:0 0 96px}
+.funnel .f .bar{height:22px;border-radius:5px;display:flex;align-items:center;padding-left:10px;color:#fff;font-size:10px;min-width:40px;position:relative;cursor:default;transition:.3s}
+.funnel .f .bar:hover{filter:brightness(1.2)}
+.funnel .f .bar em{position:absolute;right:8px;font-style:normal;opacity:.75}
+.legend{display:flex;gap:14px;font-size:10px;color:var(--dim);margin-top:8px}
+.legend i{display:inline-block;width:16px;height:3px;border-radius:2px;margin-right:5px;vertical-align:3px}
+/* 抽屉 */
+#drawer{position:fixed;top:0;right:-420px;width:400px;max-width:94vw;height:100vh;background:var(--bg2);
+  border-left:1px solid var(--gold-line);z-index:70;transition:.28s;display:flex;flex-direction:column}
+#drawer.open{right:0}
+#drawer .dh{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+#drawer .dh b{color:var(--gold);font-family:"Noto Serif SC",serif}
+#drawer .db{flex:1;overflow-y:auto;padding:14px 16px}
+.snapshot{display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:11px}
+.snapshot div{background:var(--card2);border:1px solid var(--line);border-radius:8px;padding:9px}
+.snapshot b{display:block;font-size:15px;margin-top:3px;color:var(--gold)}
+#mask{position:fixed;inset:0;background:rgba(4,7,10,.6);z-index:60;opacity:0;pointer-events:none;transition:.25s}
+#mask.on{opacity:1;pointer-events:auto}
+/* toast */
+#toast{position:fixed;left:50%;top:60px;transform:translateX(-50%) translateY(-8px);background:#060a0e;border:1px solid var(--gold);color:var(--gold);padding:9px 24px;border-radius:99px;font-size:12px;opacity:0;transition:.3s;z-index:90;pointer-events:none}
+#toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+/* 进度条 */
+.prog{height:5px;background:rgba(255,255,255,.07);border-radius:3px;overflow:hidden;margin:8px 0}
+.prog i{display:block;height:100%;width:0;background:linear-gradient(90deg,#7a5d2b,var(--gold));transition:.5s;border-radius:3px}
+/* 主线网格 */
+.slines{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.sline{border:1px solid var(--line);border-radius:10px;padding:11px;background:var(--card);cursor:pointer;transition:.18s}
+.sline:hover{border-color:var(--gold-line);transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.4)}
+.sline .n{font-weight:600;font-size:12px}.sline .b{color:var(--faint);font-size:10px;margin-top:3px}
+.mini-stages{display:flex;gap:3px;margin-top:9px}
+.mini-stages i{flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,.09)}
+.mini-stages i.d{background:var(--gold)}.mini-stages i.c{background:var(--gold);opacity:.45;animation:breath 2s infinite}
+@keyframes breath{50%{opacity:.25}}
+.slider{-webkit-appearance:none;width:120px;height:4px;background:#22303f;border-radius:2px}
+.slider::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--gold);cursor:pointer}
+.switch{width:34px;height:19px;border-radius:99px;background:#22303f;position:relative;cursor:pointer;display:inline-block;transition:.2s;vertical-align:middle}
+.switch::after{content:"";position:absolute;left:2px;top:2px;width:15px;height:15px;border-radius:50%;background:#5d6878;transition:.2s}
+.switch.on{background:rgba(200,162,75,.35)}.switch.on::after{left:17px;background:var(--gold)}
+.audit{position:relative;padding-left:20px}
+.audit::before{content:"";position:absolute;left:5px;top:6px;bottom:6px;width:2px;background:var(--line)}
+.audit .a{position:relative;padding:2px 0 14px;font-size:12px;color:var(--dim)}
+.audit .a b{color:var(--ink);font-weight:500}
+.audit .a::before{content:"";position:absolute;left:-19px;top:6px;width:8px;height:8px;border-radius:50%;background:var(--blue);border:2px solid var(--bg)}
+.audit .a.warn::before{background:var(--red)}
+#tabbar{display:none}
+/* ── 移动端 ── */
+@media (max-width:880px){
+  #app{grid-template-columns:1fr}
+  #side{position:fixed;left:-240px;width:224px;transition:.25s;box-shadow:none}
+  #side.open{box-shadow:24px 0 60px rgba(0,0,0,.5)}
+  #burger{display:block}#hd .search{display:none}
+  main{padding:12px 12px 78px}
+  .kpis{grid-template-columns:1fr 1fr}
+  .row2,.row3{grid-template-columns:1fr}
+  .slines{grid-template-columns:1fr 1fr}
+  .resp thead{display:none}
+  .resp tr{display:block;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:9px 12px;margin-bottom:9px}
+  .resp td{display:flex;justify-content:space-between;border:none;padding:3px 0;font-size:12px}
+  .resp td::before{content:attr(data-l);color:var(--faint)}
+  #tabbar{display:flex;position:fixed;bottom:0;left:0;right:0;background:rgba(10,14,19,.96);backdrop-filter:blur(10px);border-top:1px solid var(--line);z-index:40;padding:4px 0 calc(5px + env(safe-area-inset-bottom))}
+  #tabbar button{flex:1;border:none;background:none;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10px;color:var(--dim);padding:6px 0}
+  #tabbar button.on{color:var(--gold)}
+  #tabbar button .ic{font-size:18px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <aside id="side">
+    <div class="logo">⚜️ 寻仙·后台<small>玄幻修仙模拟器 · v0.1.1 暗色</small></div>
+    <div class="group">运 营</div>
+    <button class="nv on" data-s="0" onclick="go(0,this)">📊 运营看板</button>
+    <button class="nv" data-s="1" onclick="go(1,this)">👥 玩家与存档</button>
+    <button class="nv" data-s="2" onclick="go(2,this)">🧾 数值管理 <span class="badge" id="draftBadge">2</span></button>
+    <div class="group">内 容</div>
+    <button class="nv" data-s="3" onclick="go(3,this)">📜 主线剧本</button>
+    <button class="nv" data-s="4" onclick="go(4,this)">🤖 LLM 工厂</button>
+    <button class="nv" data-s="5" onclick="go(5,this)">🔔 推送中心</button>
+    <div class="group">支 持</div>
+    <button class="nv" data-s="6" onclick="go(6,this)">🎧 客服支持</button>
+    <button class="nv" data-s="7" onclick="go(7,this)">🛡️ 审计日志 <span class="badge">5</span></button>
+    <button class="nv" data-s="8" onclick="go(8,this)">⚙️ 系统设置</button>
+    <div class="foot">admin@xunxian · 内网<br>PostgreSQL ● 已连接 · GLM-5.2 ●</div>
+  </aside>
+
+  <div id="wrap">
+    <div id="hd">
+      <button id="burger" onclick="side.classList.toggle('open')">☰</button>
+      <div class="crumb" id="crumb">运营看板 <small>/ 数据总览</small></div>
+      <div class="search">🔍 搜索道果码 / 设备 / 玩家名…</div>
+      <span class="env">● 生产</span>
+      <span class="chip" style="font-size:11px;color:var(--dim)" onclick="toast('已切换灰度视图（demo）')">灰度</span>
+    </div>
+
+    <main>
+    <!-- ① 运营看板 -->
+    <section class="on">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <h2>运营看板<small>数据截至 2026-08-20 14:00</small></h2>
+        <div class="seg" id="rangeSeg">
+          <button class="on" onclick="setRange(0,this)">今日</button>
+          <button onclick="setRange(1,this)">7 日</button>
+          <button onclick="setRange(2,this)">30 日</button>
+        </div>
+      </div>
+      <p class="desc">数据驱动运营四层指标：漏斗 · 行为 · 成本 · 世界健康度（docs/09）</p>
+      <div class="grid kpis">
+        <div class="card kpi"><div class="l">活跃设备</div><div class="v" id="k1">128</div><div class="d up">▲ 12% 环比</div></div>
+        <div class="card kpi"><div class="l">新增仙途</div><div class="v" id="k2">37</div><div class="d up">▲ 8%</div></div>
+        <div class="card kpi"><div class="l">人均回合/会话</div><div class="v" id="k3">6.4</div><div class="d">— 持平</div></div>
+        <div class="card kpi"><div class="l">LLM 成本</div><div class="v" id="k4">¥86.2</div><div class="d up">▼ 5% 优化</div></div>
+        <div class="card kpi warn"><div class="l">叙事降级率</div><div class="v" id="k5">1.8%</div><div class="d dn">阈值 5% 内</div></div>
+      </div>
+      <div class="grid row3" style="margin-top:12px">
+        <div class="card">
+          <div class="h3">留存漏斗 · 仙途进度 <span class="more" onclick="toast('导出 CSV（demo）')">导出</span></div>
+          <div class="funnel" id="funnel">
+            <div class="f"><span class="lab">建角完成</span><div class="bar" style="width:100%;background:linear-gradient(90deg,#c8a24b,#8a6d2f)">412<em>100%</em></div></div>
+            <div class="f"><span class="lab">首回合行动</span><div class="bar" style="width:86%;background:linear-gradient(90deg,#b3924a,#7a6236)">354<em>86%</em></div></div>
+            <div class="f"><span class="lab">满 1 年（12回合）</span><div class="bar" style="width:54%;background:linear-gradient(90deg,#8f7a45,#5f5230)">223<em>54%</em></div></div>
+            <div class="f"><span class="lab">满 3 年</span><div class="bar" style="width:31%;background:linear-gradient(90deg,#6f6440,#4a4430)">128<em>31%</em></div></div>
+            <div class="f"><span class="lab">抵达终章</span><div class="bar" style="width:5%;background:linear-gradient(90deg,#4a4430,#332f24)">17<em>4.2%</em></div></div>
+          </div>
+          <p class="desc" style="margin-top:8px">⚠️ 炼气→筑基渡劫点流失最高（20→21 成功率 70%，惩罚倒退 3 级）· <a href="#" onclick="go(2);return false">去调数值</a></p>
+        </div>
+        <div class="card">
+          <div class="h3">趋势（<span id="trendLabel">7 日</span>）</div>
+          <svg viewBox="0 0 220 96" style="width:100%" id="trendSvg">
+            <line x1="0" y1="24" x2="220" y2="24" stroke="rgba(255,255,255,.05)"/><line x1="0" y1="48" x2="220" y2="48" stroke="rgba(255,255,255,.05)"/><line x1="0" y1="72" x2="220" y2="72" stroke="rgba(255,255,255,.05)"/>
+            <polyline class="spark" id="line1" points="0,62 36,54 72,60 108,42 144,46 180,30 220,32"/>
+            <polyline class="spark2" id="line2" points="0,74 36,70 72,66 108,58 144,55 180,50 220,44"/>
+          </svg>
+          <div class="legend"><span><i style="background:#5b8dd6"></i>DAU</span><span><i style="background:#c8a24b"></i>LLM 成本(¥)</span></div>
+          <div class="h3" style="margin-top:10px">境界分布（在玩存档）</div>
+          <div class="bars" style="height:86px">
+            <div class="b"><i style="height:95%"><span class="tip">142 人</span></i><span>凡人</span></div>
+            <div class="b"><i style="height:76%"><span class="tip">114 人</span></i><span>炼气</span></div>
+            <div class="b"><i style="height:41%"><span class="tip">61 人</span></i><span>筑基</span></div>
+            <div class="b"><i style="height:17%"><span class="tip">26 人</span></i><span>金丹</span></div>
+            <div class="b"><i style="height:7%"><span class="tip">10 人</span></i><span>元婴</span></div>
+            <div class="b"><i style="height:3%"><span class="tip">4 人</span></i><span>化神+</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="grid row2" style="margin-top:12px">
+        <div class="card">
+          <div class="h3">经济监控 · 灵石净流入（通胀预警）<span class="pill p-gold">观察</span></div>
+          <svg viewBox="0 0 420 84" style="width:100%">
+            <line x1="0" y1="58" x2="420" y2="58" stroke="#d05040" stroke-dasharray="5 4" stroke-width="1"/>
+            <text x="4" y="54" fill="#d05040" font-size="9">健康线</text>
+            <polyline points="0,50 42,44 84,52 126,38 168,42 210,30 252,36 294,26 336,32 378,22 420,26" fill="none" stroke="#3f9d7a" stroke-width="2"/>
+          </svg>
+          <p class="desc">产出持续高于消耗 · 建议：秘境门票 +500 / 洞府租金 +15% / 拍卖行抽成 8%</p>
+        </div>
+        <div class="card">
+          <div class="h3">世界健康度</div>
+          <table>
+            <tr><td>NPC 池命中率（复用/生成）</td><td><b style="color:var(--jade)">83%</b> <span class="pill p-green">健康</span></td></tr>
+            <tr><td>事件链完成率 · 坠魔谷</td><td><b>61%</b> <span class="pill p-gold">观察</span></td></tr>
+            <tr><td>天机简报回应率</td><td><b>34%</b> <span class="pill p-gray">偏低</span></td></tr>
+            <tr><td>自由输入占比</td><td><b>27%</b> <span class="pill p-green">↑ 活跃</span></td></tr>
+            <tr><td>道友之能触发（月均）</td><td><b>412</b> 次 <span class="pill p-green">正常</span></td></tr>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ② 玩家与存档 -->
+    <section>
+      <h2>玩家与存档<small>跨设备检索 · 只读快照（红线：客服不可改档）</small></h2>
+      <div class="card" style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <input id="q" placeholder="🔍 道果码 / 角色名 实时过滤…" style="width:190px" oninput="filterRows()">
+        <select id="st" onchange="filterRows()"><option value="">全部状态</option><option>进行中</option><option>传承</option><option>已终章</option><option>转世</option></select>
+        <select><option>全部天命</option><option>圣体之路</option><option>财可通神</option><option>血脉复兴</option><option>宗门逆袭</option><option>我命由我</option></select>
+        <span class="pill p-blue" id="rowcount">共 8 条</span>
+      </div>
+      <div class="card" style="overflow-x:auto">
+        <table class="resp">
+          <thead><tr><th>槽</th><th>角色</th><th>天命主线</th><th>境界</th><th>回合</th><th>道缘</th><th>状态</th><th>最后活跃</th><th>操作</th></tr></thead>
+          <tbody id="ptb">
+            <tr data-st="进行中"><td data-l="槽">1</td><td data-l="角色"><b>林寻</b> · 人族 · 7K2M-9QXH</td><td data-l="主线">圣体之路 · 阶段3</td><td data-l="境界">筑基 Lv.28</td><td data-l="回合">t=214</td><td data-l="道缘">道友×3</td><td data-l="状态"><span class="pill p-green">进行中</span></td><td data-l="活跃">3 分钟前</td><td data-l="操作"><button class="btn mini" onclick="snap('林寻','筑基 Lv.28','圣体之路 3/6','12,430','212 年')">快照</button> <button class="btn mini" onclick="replay()">回放</button></td></tr>
+            <tr data-st="进行中"><td data-l="槽">2</td><td data-l="角色"><b>云隐</b> · 灵族 · A3XF-8MK2</td><td data-l="主线">财可通神 · 阶段5</td><td data-l="境界">金丹 Lv.47</td><td data-l="回合">t=583</td><td data-l="道缘">心腹×1</td><td data-l="状态"><span class="pill p-green">进行中</span></td><td data-l="活跃">1 小时前</td><td data-l="操作"><button class="btn mini" onclick="snap('云隐','金丹 Lv.47','财可通神 5/6','86,200','486 年')">快照</button> <button class="btn mini" onclick="replay()">回放</button></td></tr>
+            <tr data-st="传承"><td data-l="槽">3</td><td data-l="角色"><b>青梧</b>（二代）· B9RT-4HKN</td><td data-l="主线">血脉复兴 · 阶段2</td><td data-l="境界">炼气 Lv.16</td><td data-l="回合">t=96</td><td data-l="道缘">熟识×4</td><td data-l="状态"><span class="pill p-gold">传承续玩</span></td><td data-l="活跃">昨天</td><td data-l="操作"><button class="btn mini" onclick="snap('青梧','炼气 Lv.16','血脉复兴 2/6','3,180','98 年')">快照</button> <button class="btn mini" onclick="replay()">回放</button></td></tr>
+            <tr data-st="进行中"><td data-l="槽">1</td><td data-l="角色"><b>沈青崖</b> · 妖族</td><td data-l="主线">百兵之祖 · 阶段4</td><td data-l="境界">金丹 Lv.52</td><td data-l="回合">t=641</td><td data-l="道缘">道侣×1</td><td data-l="状态"><span class="pill p-green">进行中</span></td><td data-l="活跃">5 小时前</td><td data-l="操作"><button class="btn mini" onclick="snap('沈青崖','金丹 Lv.52','百兵之祖 4/6','41,900','512 年')">快照</button> <button class="btn mini" onclick="replay()">回放</button></td></tr>
+            <tr data-st="进行中"><td data-l="槽">2</td><td data-l="角色"><b>苏小蛮</b> · 人族</td><td data-l="主线">宗门逆袭 · 阶段2</td><td data-l="境界">筑基 Lv.33</td><td data-l="回合">t=289</td><td data-l="道缘">道友×2</td><td data-l="状态"><span class="pill p-green">进行中</span></td><td data-l="活跃">12 小时前</td><td data-l="操作"><button class="btn mini" onclick="snap('苏小蛮','筑基 Lv.33','宗门逆袭 2/6','9,640','224 年')">快照</button> <button class="btn mini" onclick="replay()">回放</button></td></tr>
+            <tr data-st="转世"><td data-l="槽">1</td><td data-l="角色"><b>玄机子</b>（转世）</td><td data-l="主线">再证大道 · 阶段1</td><td data-l="境界">凡人 Lv.4</td><td data-l="回合">t=712</td><td data-l="道缘">宿敌记忆×2</td><td data-l="状态"><span class="pill p-purple">轮回转世</span></td><td data-l="活跃">2 天前</td><td data-l="操作"><button class="btn mini" onclick="snap('玄机子','凡人 Lv.4','再证大道 1/6','610','96 年')">快照</button> <button class="btn mini" onclick="replay()">回放</button></td></tr>
+            <tr data-st="已终章"><td data-l="槽">1</td><td data-l="角色"><b>问道者</b></td><td data-l="主线">再证大道 · 终章</td><td data-l="境界">渡劫 Lv.96</td><td data-l="回合">t=1204</td><td data-l="道缘">衣钵传人×1</td><td data-l="状态"><span class="pill p-gray">已终章 · 万古道主</span></td><td data-l="活跃">3 天前</td><td data-l="操作"><button class="btn mini" onclick="toast('打开终章回顾（demo）')">回顾</button></td></tr>
+            <tr data-st="进行中"><td data-l="槽">3</td><td data-l="角色"><b>叶抱真</b> · 人族</td><td data-l="主线">我命由我 · 阶段3</td><td data-l="境界">筑基 Lv.24</td><td data-l="回合">t=188</td><td data-l="道缘">道友×5</td><td data-l="状态"><span class="pill p-green">进行中</span></td><td data-l="活跃">30 分钟前</td><td data-l="操作"><button class="btn mini" onclick="snap('叶抱真','筑基 Lv.24','我命由我 3/6','15,870','206 年')">快照</button> <button class="btn mini" onclick="replay()">回放</button></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ③ 数值管理 -->
+    <section>
+      <h2>数值管理<small>ref 表 CRUD · 草稿→影响预览→发布</small></h2>
+      <p class="desc">数值热更不发文：发布前抽样存档离线重放校验；进行中存档锁定旧版本快照，新月切换</p>
+      <div class="card" style="margin-bottom:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <select id="refTab" onchange="toast('切换表：'+this.value+'（demo 仅物品可编辑）')"><option>ref_items 物品</option><option>ref_techniques 功法</option><option>ref_realms 境界</option><option>ref_punishments 惩罚表</option><option>ref_event_chains 事件链</option></select>
+        <input placeholder="筛选 key/名称…" style="width:150px" oninput="filterRef(this.value)">
+        <button class="btn pri" onclick="openDrawer('新增物品')">＋ 新增物品</button>
+        <span style="margin-left:auto" class="pill p-gold">草稿 <b id="draftN">2</b> 项待发布</span>
+        <button class="btn" onclick="impact()">影响预览</button>
+        <button class="btn pri" onclick="publish()">发布</button>
+      </div>
+      <div class="card" style="overflow-x:auto">
+        <table class="resp">
+          <thead><tr><th>key</th><th>名称</th><th>类目</th><th>价格</th><th>品级</th><th>版本</th><th>状态</th><th>操作</th></tr></thead>
+          <tbody id="rtb">
+            <tr data-k="juqi_dan"><td data-l="key">juqi_dan</td><td data-l="名称">聚气丹</td><td data-l="类目"><span class="pill p-blue">丹药</span></td><td data-l="价格"><input class="price" value="20" style="width:64px"></td><td data-l="品级">1</td><td data-l="版本">v3</td><td data-l="状态"><span class="pill p-green st">启用</span></td><td data-l="操作"><button class="btn mini" onclick="draft(this)">存草稿</button> <button class="btn mini" onclick="toggle(this)">下架</button></td></tr>
+            <tr data-k="zhuji_dan"><td data-l="key">zhuji_dan</td><td data-l="名称">筑基丹</td><td data-l="类目"><span class="pill p-blue">丹药</span></td><td data-l="价格"><input class="price" value="8000" style="width:70px"></td><td data-l="品级">4</td><td data-l="版本">v2</td><td data-l="状态"><span class="pill p-green st">启用</span></td><td data-l="操作"><button class="btn mini" onclick="draft(this)">存草稿</button> <button class="btn mini" onclick="toggle(this)">下架</button></td></tr>
+            <tr data-k="qingxin_dan"><td data-l="key">qingxin_dan</td><td data-l="名称">清心丹</td><td data-l="类目"><span class="pill p-blue">丹药</span></td><td data-l="价格"><input class="price" value="35" style="width:64px"></td><td data-l="品级">1</td><td data-l="版本">v1</td><td data-l="状态"><span class="pill p-green st">启用</span></td><td data-l="操作"><button class="btn mini" onclick="draft(this)">存草稿</button> <button class="btn mini" onclick="toggle(this)">下架</button></td></tr>
+            <tr data-k="huoyun_dao"><td data-l="key">huoyun_dao</td><td data-l="名称">火纹法刀</td><td data-l="类目"><span class="pill p-gold">法器</span></td><td data-l="价格"><input class="price" value="900" style="width:64px"></td><td data-l="品级">3</td><td data-l="版本">v1</td><td data-l="状态"><span class="pill p-gray st">已下架</span></td><td data-l="操作"><button class="btn mini" onclick="draft(this)">存草稿</button> <button class="btn mini" onclick="toggle(this)">上架</button></td></tr>
+            <tr data-k="hushen_fu"><td data-l="key">hushen_fu</td><td data-l="名称">护身符（替死）</td><td data-l="类目"><span class="pill p-purple">符箓</span></td><td data-l="价格"><input class="price" value="120" style="width:64px"></td><td data-l="品级">2</td><td data-l="版本">v1</td><td data-l="状态"><span class="pill p-green st">启用</span></td><td data-l="操作"><button class="btn mini" onclick="draft(this)">存草稿</button> <button class="btn mini" onclick="toggle(this)">下架</button></td></tr>
+            <tr data-k="yaodan_c"><td data-l="key">yaodan_c</td><td data-l="名称">妖兽内丹</td><td data-l="类目"><span class="pill p-gray">灵材</span></td><td data-l="价格"><input class="price" value="150" style="width:64px"></td><td data-l="品级">2</td><td data-l="版本">v1</td><td data-l="状态"><span class="pill p-green st">启用</span></td><td data-l="操作"><button class="btn mini" onclick="draft(this)">存草稿</button> <button class="btn mini" onclick="toggle(this)">下架</button></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ④ 主线剧本 -->
+    <section>
+      <h2>主线剧本<small>10 天命 × 6 阶段 · 节点图 · 平衡红线 ±15%</small></h2>
+      <p class="desc">点击主线卡查看阶段详情与节点图；卡上进度 = 全服玩家平均到达阶段</p>
+      <div class="slines" id="slines"></div>
+      <div class="card" style="margin-top:12px" id="sDetail">
+        <div class="h3">「① 圣体之路」阶段2 · 星辰初淬 · 节点图 <span class="more" onclick="toast('校验报告：✅ 无死端 · ✅ 奖励平衡偏差 8.2%')">完整校验</span></div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:11px" id="nodeFlow">
+          <span class="pill p-gold">entry 天命之召</span>➜
+          <span class="pill p-blue">choice×3 互斥</span>➜
+          <span class="pill p-blue">judgment 天人感应</span>➜
+          <span class="pill p-green">reward 灵石护盾</span>➜
+          <span class="pill p-gray">expiry 3月·静待来年</span>
+          <button class="btn mini" style="margin-left:auto" onclick="toast('节点编辑器（demo）')">＋ 添加节点</button>
+        </div>
+        <table style="margin-top:12px">
+          <thead><tr><th>阶段2 选项分布</th><th>占比</th><th>均值结局</th></tr></thead>
+          <tr><td>循迹而修（稳健）</td><td><div style="background:rgba(255,255,255,.07);border-radius:4px;height:14px;width:180px"><i style="display:block;height:100%;width:48%;background:linear-gradient(90deg,#8a6d2f,#c8a24b);border-radius:4px"></i></div></td><td>修为 +120 · 留存佳</td></tr>
+          <tr><td>直探核心（冒险 ⚠️）</td><td><div style="background:rgba(255,255,255,.07);border-radius:4px;height:14px;width:180px"><i style="display:block;height:100%;width:31%;background:linear-gradient(90deg,#7a3a32,#d05040);border-radius:4px"></i></div></td><td>遗物×1 · 失败率 38%</td></tr>
+          <tr><td>广结善缘</td><td><div style="background:rgba(255,255,255,.07);border-radius:4px;height:14px;width:180px"><i style="display:block;height:100%;width:21%;background:linear-gradient(90deg,#37567e,#5b8dd6);border-radius:4px"></i></div></td><td>结识同路人×1.7</td></tr>
+        </table>
+      </div>
+    </section>
+
+    <!-- ⑤ LLM 工厂 -->
+    <section>
+      <h2>LLM 工厂<small>供应商路由 · Prompt 版本 · AB 灰度</small></h2>
+      <div class="grid row2">
+        <div class="card">
+          <div class="h3">供应商</div>
+          <table>
+            <tr><td><b style="color:var(--gold)">智谱 GLM-5.2</b><br><span style="color:var(--faint);font-size:10px">thinking:disabled · P95 3.2s</span></td><td><span class="pill p-green">默认</span></td><td><span class="switch on" onclick="sw(this,'GLM-5.2 已设为默认')"></span></td></tr>
+            <tr><td><b>GLM-5.2-Air</b><br><span style="color:var(--faint);font-size:10px">轻量 · 意图解析 · P95 0.9s</span></td><td><span class="pill p-blue">场景路由</span></td><td><span class="switch on" onclick="sw(this,'Air 场景路由已开启')"></span></td></tr>
+            <tr><td><b>DeepSeek-V4</b><br><span style="color:var(--faint);font-size:10px">备用 · 高峰限流</span></td><td><span class="pill p-gray">停用</span></td><td><span class="switch" onclick="sw(this,'DeepSeek 已启用（demo）')"></span></td></tr>
+          </table>
+        </div>
+        <div class="card">
+          <div class="h3">场景路由与成本</div>
+          <table>
+            <tr><td>主叙事</td><td>GLM-5.2</td><td>1,392 次</td><td style="color:var(--gold)">¥62.1</td></tr>
+            <tr><td>意图解析</td><td>GLM-5.2-Air</td><td>3,204 次</td><td style="color:var(--gold)">¥12.8</td></tr>
+            <tr><td>终章回顾</td><td>GLM-5.2</td><td>17 次</td><td style="color:var(--gold)">¥2.3</td></tr>
+            <tr><td>NPC 池生成</td><td>GLM-5.2-Air</td><td>96 次</td><td style="color:var(--gold)">¥9.0</td></tr>
+          </table>
+          <div style="margin-top:10px;font-size:11px;color:var(--dim)">今日合计 <b style="color:var(--gold);font-size:18px;font-family:'Noto Serif SC',serif">¥86.2</b> · 单存档月均 ¥1.9</div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:12px">
+        <div class="h3">Prompt 版本 · 主叙事</div>
+        <table>
+          <tr onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'':'none'" style="cursor:pointer"><td><b>v7</b> <span class="pill p-green">当前</span></td><td style="color:var(--dim)">+分层记忆相关性打分 · 降级率 1.8%↓ · 均长 612 字</td><td>灰度 <b id="g7" style="color:var(--gold)">100%</b></td><td><input type="range" class="slider" min="0" max="100" value="100" oninput="document.getElementById('g7').textContent=this.value+'%'" onchange="toast('v7 灰度已调整（demo）')"></td></tr>
+          <tr style="display:none"><td colspan="4" style="color:var(--dim);font-size:11px;background:var(--card2);border-radius:8px;padding:10px">diff：system 段新增「记忆包按相关性注入 ≤4K token」；叙事铁律第 2 条补充「禁提及 delta 外具名物品」。</td></tr>
+          <tr onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'':'none'" style="cursor:pointer"><td><b>v8</b> <span class="pill p-gold">AB 实验</span></td><td style="color:var(--dim)">+场景氛围词表（秘境/渡劫/坊市差异化基调）</td><td>灰度 <b id="g8" style="color:var(--gold)">10%</b></td><td><input type="range" class="slider" min="0" max="100" value="10" oninput="document.getElementById('g8').textContent=this.value+'%'" onchange="toast('v8 灰度已调整（demo）')"></td></tr>
+          <tr style="display:none"><td colspan="4" style="color:var(--dim);font-size:11px;background:var(--card2);border-radius:8px;padding:10px">diff：新增 8 类场景基调词表；氛围参数 moodTags 直接驱动前端动效主题。</td></tr>
+        </table>
+      </div>
+    </section>
+
+    <!-- ⑥ 推送中心 -->
+    <section>
+      <h2>推送中心<small>Web Push · VAPID ● 已配置 · 订阅 312</small></h2>
+      <div class="grid row2">
+        <div class="card">
+          <div class="h3">广播编辑器</div>
+          <input value="🌌 天命之召" style="width:100%;margin-bottom:8px;font-family:'Noto Serif SC',serif">
+          <textarea rows="3" style="width:100%">新的一年已至，你的天命在等待抉择。错过需再等一年。</textarea>
+          <div style="display:flex;gap:8px;margin-top:10px;align-items:center;flex-wrap:wrap">
+            <select id="segSel" onchange="document.getElementById('segN').textContent=this.options[this.selectedIndex].dataset.n">
+              <option data-n="312">全部分户（312）</option>
+              <option data-n="128">活跃 7 天（128）</option>
+              <option data-n="41">卡在渡劫点（41）</option>
+              <option data-n="66">寿元 &lt;10 年未传承（66）</option>
+            </select>
+            <button class="btn pri" onclick="broadcast(this)">广播至 <b id="segN">312</b> 设备</button>
+            <button class="btn">定时</button>
+          </div>
+          <div class="prog" style="display:none" id="bcProg"><i></i></div>
+        </div>
+        <div class="card">
+          <div class="h3">自动提醒策略</div>
+          <table>
+            <tr><td>天命之召月（每年 1 月）</td><td><span class="pill p-green">开启</span></td><td><span class="switch on" onclick="sw(this,'策略已切换（demo）')"></span></td></tr>
+            <tr><td>因缘保鲜期剩 1 月</td><td><span class="pill p-green">开启</span></td><td><span class="switch on" onclick="sw(this,'策略已切换（demo）')"></span></td></tr>
+            <tr><td>寿元 &lt; 10 年未传承</td><td><span class="pill p-gold">仅一次</span></td><td><span class="switch on" onclick="sw(this,'策略已切换（demo）')"></span></td></tr>
+            <tr><td>版本更新公告</td><td><span class="pill p-gray">关闭</span></td><td><span class="switch" onclick="sw(this,'策略已切换（demo）')"></span></td></tr>
+          </table>
+          <p class="desc" style="margin-top:8px">今日已发送 128 · 到达率 96% · 失败自动清理 2</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ⑦ 客服支持 -->
+    <section>
+      <h2>客服支持<small>道果码定位 · 只读快照 · 回合回放</small></h2>
+      <div class="card" style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+        <input id="csCode" placeholder="输入道果码，如 7K2M-9QXH" style="width:200px" value="7K2M-9QXH">
+        <button class="btn pri" onclick="csFind(this)">定位仙途</button>
+        <span class="pill p-red">红线：客服不可改档 · 修复走补偿码流程</span>
+      </div>
+      <div class="card" id="csCard">
+        <div class="h3">存档快照 · <span id="csName" style="color:var(--gold)">—</span></div>
+        <div class="snapshot" id="csSnap" style="opacity:.35">
+          <div>境界<b>—</b></div><div>天命<b>—</b></div><div>灵石<b>—</b></div><div>道缘<b>—</b></div>
+          <div>寿元<b>—</b></div><div>百艺<b>—</b></div><div>所在<b>—</b></div><div>最近行动<b>—</b></div>
+        </div>
+        <div style="margin-top:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <span style="font-size:12px;color:var(--dim)">回合回放：</span>
+          <input value="212" style="width:70px">
+          <button class="btn" onclick="replay()">重放对比</button>
+          <span class="pill p-green" id="csVerdict" style="display:none">✅ 引擎 delta 与落库一致</span>
+        </div>
+        <div class="h3" style="margin-top:14px">最近 5 次行动</div>
+        <table>
+          <tr><td>t=214</td><td>秘境 · 坠魔谷（内层）</td><td>修为 +200 · 魔功残卷×1</td></tr>
+          <tr><td>t=213</td><td>道缘 · 拜访陈老</td><td>好感 +9（道友）</td></tr>
+          <tr><td>t=212</td><td>斗法 · 赤鳞蟒王</td><td>胜 · 内丹×2</td></tr>
+          <tr><td>t=211</td><td>百艺 · 炼丹</td><td>收入 +320</td></tr>
+          <tr><td>t=210</td><td>闭关</td><td>修为 +112</td></tr>
+        </table>
+      </div>
+    </section>
+
+    <!-- ⑧ 审计日志 -->
+    <section>
+      <h2>审计日志<small>后台全操作留痕</small></h2>
+      <div class="card" style="margin-bottom:12px;display:flex;gap:8px">
+        <select id="auFilter" onchange="filterAudit(this.value)"><option value="">全部类型</option><option>发布</option><option>路由</option><option>推送</option><option>登录</option></select>
+        <select><option>全部管理员</option><option>admin</option></select>
+      </div>
+      <div class="card"><div class="audit" id="auditList">
+        <div class="a warn" data-t="发布"><b>14:02</b> · admin 发布 ref_items 草稿（筑基丹 8000→6500 · v3 · 影响预览通过）</div>
+        <div class="a" data-t="路由"><b>13:47</b> · admin 修改场景路由：意图解析 → GLM-5.2-Air</div>
+        <div class="a" data-t="推送"><b>11:20</b> · admin 广播「天命之召」至 128 设备（到达 123）</div>
+        <div class="a" data-t="发布"><b>10:58</b> · admin 存草稿：聚气丹价格 20（未发布）</div>
+        <div class="a" data-t="登录"><b>09:15</b> · system 夜间物化视图刷新成功（6.2s）</div>
+        <div class="a" data-t="登录"><b>昨日 22:41</b> · admin 登录（192.168.1.10 · 内网）</div>
+      </div>
+      <button class="btn" style="margin-top:10px" onclick="toast('已加载更早 20 条（demo）')">加载更早</button></div>
+    </section>
+
+    <!-- ⑨ 系统设置 -->
+    <section>
+      <h2>系统设置</h2>
+      <div class="grid row2">
+        <div class="card"><div class="h3">基础设施</div>
+          <table>
+            <tr><td>PostgreSQL</td><td><span class="pill p-green">100.66.1.2/xunxian · 已连接</span></td></tr>
+            <tr><td>每日备份 PITR</td><td><span class="pill p-green">开启</span> · 上次恢复演练 7 天前</td></tr>
+            <tr><td>VAPID 推送</td><td><span class="pill p-green">已配置</span> · 订阅 312</td></tr>
+            <tr><td>部署</td><td>内网自托管 :1234 · Vercel 就绪（vercel.json）</td></tr>
+          </table>
+        </div>
+        <div class="card"><div class="h3">安全</div>
+          <table>
+            <tr><td>管理员密码</td><td><button class="btn mini" onclick="toast('已发送轮换确认邮件（demo）')">轮换 ADMIN_PASSWORD</button></td></tr>
+            <tr><td>API 限流</td><td>回合 30/min · 自由输入 20/min · 恢复码 5/h</td></tr>
+            <tr><td>防 SL</td><td><span class="pill p-green">开启</span> · 回合只追加无回滚</td></tr>
+            <tr><td>LLM 输出审计</td><td><span class="switch on" onclick="sw(this,'输出审计已切换（demo）')"></span></td></tr>
+          </table>
+        </div>
+      </div>
+    </section>
+    </main>
+  </div>
+</div>
+
+<!-- 右侧抽屉（玩家快照/新增物品/剧本详情） -->
+<div id="mask" onclick="closeDrawer()"></div>
+<aside id="drawer">
+  <div class="dh"><b id="dTitle">详情</b><button class="btn mini" onclick="closeDrawer()">✕</button></div>
+  <div class="db" id="dBody"></div>
+</aside>
+<div id="toast"></div>
+
+<!-- 移动端底部 Tab -->
+<nav id="tabbar">
+  <button class="on" onclick="go(0,this)"><span class="ic">📊</span>看板</button>
+  <button onclick="go(1,this)"><span class="ic">👥</span>玩家</button>
+  <button onclick="go(2,this)"><span class="ic">🧾</span>数值</button>
+  <button onclick="go(4,this)"><span class="ic">🤖</span>LLM</button>
+  <button onclick="side.classList.add('open')"><span class="ic">☰</span>更多</button>
+</nav>
+
+<script>
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const side=$('#side');
+function go(i,btn){
+  $$('section').forEach((s,k)=>s.classList.toggle('on',k===i));
+  const crumbs=["运营看板 / 数据总览","运营 / 玩家与存档","运营 / 数值管理","内容 / 主线剧本","内容 / LLM 工厂","内容 / 推送中心","支持 / 客服支持","支持 / 审计日志","支持 / 系统设置"];
+  $('#crumb').innerHTML=crumbs[i].replace(' / ',' <small>/</small> ');
+  $$('#side .nv').forEach(b=>b.classList.toggle('on',+b.dataset.s===i));
+  $$('#tabbar button').forEach((b,k)=>b.classList.toggle('on',k===Math.min(i,4)));
+  side.classList.remove('open');window.scrollTo(0,0);
+}
+document.addEventListener('click',e=>{if(side.classList.contains('open')&&!side.contains(e.target)&&!e.target.closest('#burger'))side.classList.remove('open')});
+
+/* toast */
+let tt;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),2200)}
+
+/* ① 看板：时间范围切换（KPI+折线联动） */
+const RANGES=[
+ {k:['128','37','6.4','¥86.2','1.8%'],l1:'0,62 36,54 72,60 108,42 144,46 180,30 220,32',l2:'0,74 36,70 72,66 108,58 144,55 180,50 220,44',label:'今日（分时）'},
+ {k:['96','284','5.9','¥512.0','1.6%'],l1:'0,66 36,60 72,52 108,56 144,44 180,38 220,28',l2:'0,78 36,72 72,68 108,60 144,58 180,52 220,46',label:'7 日'},
+ {k:['412','1,207','6.1','¥2,140','1.7%'],l1:'0,70 36,64 72,58 108,48 144,52 180,36 220,24',l2:'0,82 36,76 72,70 108,66 144,60 180,56 220,50',label:'30 日'},
+];
+function setRange(i,btn){$$('#rangeSeg button').forEach(b=>b.classList.remove('on'));btn.classList.add('on');
+  const r=RANGES[i];['k1','k2','k3','k4','k5'].forEach((id,k)=>$('#'+id).textContent=r.k[k]);
+  $('#line1').setAttribute('points',r.l1);$('#line2').setAttribute('points',r.l2);
+  $('#trendLabel').textContent=r.label;toast('已切换：'+r.label)}
+
+/* ② 玩家：实时过滤 */
+function filterRows(){
+  const q=$('#q').value.trim(),st=$('#st').value;let n=0;
+  $$('#ptb tr').forEach(tr=>{const hit=(!q||tr.textContent.includes(q))&&(!st||tr.dataset.st===st);
+    tr.style.display=hit?'':'none';if(hit)n++});
+  $('#rowcount').textContent=`共 ${n} 条`;
+}
+/* 快照抽屉 */
+function snap(name,realm,destiny,stones,life){
+  $('#dTitle').textContent='存档快照 · '+name;
+  $('#dBody').innerHTML=`
+    <div class="snapshot">
+      <div>境界<b>${realm}</b></div><div>天命<b>${destiny}</b></div>
+      <div>灵石<b>${stones}</b></div><div>寿元<b>${life}</b></div>
+      <div>百艺<b>炼丹 Lv.24</b></div><div>道缘<b>道友×3 · 心腹×1</b></div>
+      <div>所在<b>中州·太虚宗</b></div><div>最近行动<b>秘境·坠魔谷</b></div>
+    </div>
+    <div class="h3" style="margin-top:14px">本月决策罗盘（快照）</div>
+    <table><tr><td>①</td><td>【天命·星辰初淬】淬炼圣体之基</td><td class="pill p-gold">命途</td></tr>
+    <tr><td>③</td><td>【因缘·兽潮将起】随执法堂驰援</td><td class="pill p-blue">因缘</td></tr>
+    <tr><td>④</td><td>【机缘·古修士洞府】探索</td><td class="pill p-green">历练</td></tr></table>
+    <p class="desc" style="margin-top:12px">🔒 只读快照 · 修改需走补偿码审批流</p>`;
+  openDrawer2();
+}
+function replay(){
+  toast('⏳ 重放回合中…（固定种子）');
+  setTimeout(()=>{$('#csVerdict').style.display='';toast('✅ 回放完成：引擎 delta 与落库一致')},1400);
+}
+
+/* ③ 数值：草稿/上下架/发布/影响预览 */
+function draft(btn){
+  const tr=btn.closest('tr');const n=+$('#draftN').textContent+1;
+  $('#draftN').textContent=n;$('#draftBadge').textContent=n;
+  tr.querySelector('.pill.st')?.classList.add('p-gold');
+  toast(`已存草稿：${tr.dataset.k}（待影响预览后发布）`);
+}
+function toggle(btn){
+  const tr=btn.closest('tr');const pill=tr.querySelector('.pill.st');const on=pill.classList.contains('p-green');
+  pill.className='pill st '+(on?'p-gray':'p-green');pill.textContent=on?'已下架':'启用';
+  btn.textContent=on?'上架':'下架';toast(`${tr.dataset.k} 已${on?'下架（下月货架生效）':'重新上架'}`);
+}
+function filterRef(q){$$('#rtb tr').forEach(tr=>tr.style.display=(!q||tr.dataset.k.includes(q)||tr.textContent.includes(q))?'':'none')}
+function impact(){
+  $('#dTitle').textContent='影响预览（发布前）';
+  $('#dBody').innerHTML=`
+    <table>
+      <tr><td>改动项</td><td><b style="color:var(--gold)">筑基丹 8000 → 6500</b>（v2→v3）</td></tr>
+      <tr><td>影响范围</td><td>坊市正市货架 · 主线「丹道至尊」阶段3 等值奖励</td></tr>
+      <tr><td>关联系统</td><td>经济净流入模型 · 新手筑基节奏</td></tr>
+    </table>
+    <div class="h3" style="margin-top:14px">抽样离线重放</div>
+    <div class="prog"><i id="impP"></i></div>
+    <div id="impS" style="font-size:11px;color:var(--dim)">20 存档 × 50 回合重放中…</div>`;
+  openDrawer2();
+  let p=0;const t=setInterval(()=>{p+=12;$('#impP').style.width=Math.min(p,100)+'%';
+    if(p>=100){clearInterval(t);$('#impS').innerHTML='<span class="pill p-green">✅ 通过</span> 数值漂移 &lt;3% · 无不变量违例';}},260);
+}
+function publish(){
+  if(+$('#draftN').textContent===0){toast('当前无待发布草稿');return}
+  toast('✅ 已发布：'+$('#draftN').textContent+' 项（v3 · 新档即时/在玩档下月切换）');
+  $('#draftN').textContent=0;$('#draftBadge').textContent=0;
+}
+
+/* ④ 剧本：模拟数据渲染 + 详情 */
+const SLINES=[["① 圣体之路","天生道体 · 37人",3],["② 财可通神","坊市学徒 · 52人",5],["③ 血脉复兴","没落血脉 · 29人",2],["④ 逆境求生","遗孤散修 · 44人",3],["⑤ 再证大道","转世大能 · 31人",6],["⑥ 红尘问道","佛道童子 · 18人",2],["⑦ 丹道至尊","炼丹世家 · 40人",3],["⑧ 宗门逆袭","宗门杂役 · 48人",3],["⑨ 百兵之祖","铸剑山庄 · 22人",2],["⑩ 我命由我","大器晚成 · 61人 ⭐",3]];
+$('#slines').innerHTML=SLINES.map(([n,b,s],i)=>`
+  <div class="sline" onclick="slDetail(${i})">
+    <div class="n">${n}</div><div class="b">${b} · 平均阶段 ${s}/6</div>
+    <div class="mini-stages">${[1,2,3,4,5,6].map(k=>`<i class="${k<s?'d':k===s?'c':''}"></i>`).join('')}</div>
+  </div>`).join('');
+const STAGE_NAMES={0:["封印松动","星辰初淬","圣体初劫","不灭战体","因果清算","星空试炼"],1:["第一桶金","商会雏形","垄断之路","金钱道义","富可敌国","财神抉择"]};
+function slDetail(i){
+  const st=STAGE_NAMES[i]??["阶段一","阶段二","阶段三","阶段四","阶段五","终幕"];
+  $('#dTitle').textContent=SLINES[i][0]+' · 六阶段';
+  $('#dBody').innerHTML=st.map((n,k)=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line)">
+      <span class="pill ${k<SLINES[i][2]-1?'p-green':k===SLINES[i][2]-1?'p-gold':'p-gray'}">${k+1}</span>
+      <b style="flex:1">${n}</b>
+      <span style="font-size:10px;color:var(--faint)">${k<SLINES[i][2]-1?'已通玩家 22+':k===SLINES[i][2]-1?'进行中 ▶':'未开放'}</span>
+    </div>`).join('')+'<p class="desc" style="margin-top:10px">六阶段状态机：修为达标→次年 1-3 月天命之召→抉择→奖励→阶段推进；错过静待来年。</p>';
+  openDrawer2();
+}
+
+/* ⑤ LLM 开关 */
+function sw(el,msg){el.classList.toggle('on');toast(msg)}
+
+/* ⑥ 推送广播进度 */
+function broadcast(btn){
+  const p=$('#bcProg');p.style.display='block';
+  let v=0;const t=setInterval(()=>{v+=14;p.firstElementChild.style.width=Math.min(v,100)+'%';
+    if(v>=100){clearInterval(t);toast(`✅ 已广播：发送 123 · 失败清理 2`);}},200);
+}
+
+/* ⑦ 客服定位 */
+function csFind(btn){
+  const snap=$('#csSnap');snap.style.opacity='.5';toast('⏳ 定位道果码 '+$('#csCode').value+'…');
+  setTimeout(()=>{
+    const vals=['林寻','筑基 Lv.28','圣体之路 3/6','12,430','212 年','炼丹 Lv.24','中州·太虚宗','秘境·坠魔谷'];
+    snap.style.opacity='1';
+    [...snap.querySelectorAll('b')].forEach((b,k)=>b.textContent=vals[k]);
+    $('#csName').textContent='林寻（t=214）';toast('✅ 已定位：林寻 · 道果码 7K2M-9QXH');
+  },900);
+}
+
+/* ⑧ 审计过滤 */
+function filterAudit(t){$$('#auditList .a').forEach(a=>a.style.display=(!t||a.dataset.t===t)?'':'none')}
+
+/* 抽屉 */
+function openDrawer2(){$('#drawer').classList.add('open');$('#mask').classList.add('on')}
+function closeDrawer(){$('#drawer').classList.remove('open');$('#mask').classList.remove('on')}
+</script>
+</body>
+</html>
