@@ -11,10 +11,11 @@ interface CompassOpt {
 interface TurnView {
   state: PlayerState; realmName: string; compass: CompassOpt[];
   briefing?: { title: string; items: { text: string }[] }[];
+  destiny?: { storylineKey: string; stage: number; phase: string; waitingYears: number; rewards: string[] };
 }
 interface Settlement {
   turnNo: number; narrative: string; degraded: boolean;
-  delta: { cultivationGain: number; levelsGained: number; realmName: string; combat?: CombatResult; relation?: { npcName: string; intimacy: number; tier: number } };
+  delta: { cultivationGain: number; levelsGained: number; realmName: string; combat?: CombatResult; relation?: { npcName: string; intimacy: number; tier: number }; destiny?: { stageName: string; rewardNote: string; nextPhase: string } };
   state: PlayerState;
 }
 
@@ -250,6 +251,24 @@ function GameInner() {
 
       {tab === "month" && (<>
 
+      {/* 未竟仙途 */}
+      {view.destiny && (
+        <div className="card">
+          <div style={{ textAlign: "center", color: "var(--gold)" }}>📜【未竟仙途】</div>
+          <div style={{ marginTop: 8, fontSize: 13 }}>
+            🔴 天命主线 · {view.destiny.storylineKey} ｜ 阶段 {view.destiny.stage}/6
+            <span style={{ color: "var(--ink-dim)" }}>
+              ｜ {view.destiny.phase === "awaiting" ? "待抉择（天命之召 1-3 月）" : view.destiny.phase === "finale" ? "终幕已至" : "推进中"}
+            </span>
+          </div>
+          {view.destiny.rewards.length > 0 && (
+            <div style={{ marginTop: 6, fontSize: 12, color: "var(--ink-dim)" }}>
+              已获：{view.destiny.rewards.slice(-3).join("；")}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* 天机简报 */}
       {view.briefing && view.briefing.length > 0 && (
         <div className="card">
@@ -274,6 +293,11 @@ function GameInner() {
           </div>
           {settle.delta.levelsGained > 0 && (
             <div style={{ color: "var(--jade)", marginTop: 8 }}>✨ 连破 {settle.delta.levelsGained} 层！</div>
+          )}
+          {settle.delta.destiny && (
+            <div style={{ marginTop: 8, fontSize: 13, color: "var(--gold)" }}>
+              🌌 天命推进：{settle.delta.destiny.stageName} 完成，获得「{settle.delta.destiny.rewardNote}」
+            </div>
           )}
           {settle.delta.relation && (
             <div style={{ marginTop: 8, fontSize: 13, color: "var(--gold)" }}>

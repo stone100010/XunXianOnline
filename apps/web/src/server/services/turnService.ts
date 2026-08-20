@@ -9,6 +9,7 @@ import type { CompassOption } from "@xunxian/engine";
 import type { PlayerState } from "@xunxian/shared";
 import { store } from "../store.js";
 import type { StoredRelation } from "../store.js";
+import { stageScript } from "@xunxian/content";
 import { buildProviderFromEnv, NarrativeService } from "../llm/index.js";
 import { ServiceError } from "./archiveService.js";
 
@@ -61,16 +62,29 @@ function settleAction(state: PlayerState, option: CompassOption, rng: ReturnType
 }
 
 // ── 罗盘上下文组装（v0：天命/因缘池由剧本层接入，暂用兜底）──
-function compassCtxFor(state: PlayerState) {
-  return {
+/** 罗盘上下文：天命之召（1-3 月）注入当前主线阶段决策选项（六章一） */
+async function compassCtxFor(archiveId: string, state: PlayerState) {
+  const ctx = {
     gameMonth: state.gameMonth,
-    destinyOptions: [],
-    karmaOptions: [],
-    exploreOptions: [],
-    socialOptions: [],
-    artOptions: [],
-    secludeOptions: [],
+    destinyOptions: [] as { label: string; riskFlag?: boolean; destinyFlag?: boolean }[],
+    karmaOptions: [] as { label: string }[],
+    exploreOptions: [] as { label: string }[],
+    socialOptions: [] as { label: string }[],
+    artOptions: [] as { label: string }[],
+    secludeOptions: [] as { label: string }[],
   };
+  const destiny = await store.getDestiny(archiveId);
+  if (destiny && state.gameMonth >= 1 && state.gameMonth <= 3 && destiny.phase === "awaiting") {
+    const script = stageScript(destiny.storylineKey, destiny.stage);
+    if (state.cultivation.level >= script.realmGate[0]) {
+      ctx.destinyOptions = script.options.map((o) => ({
+        label: `【天命·${script.name}】${o.label}`,
+        riskFlag: o.riskFlag,
+        destinyFlag: true,
+      }));
+    }
+  }
+  return ctx;
 }
 
 function monthSeed(archiveId: string, turnNo: number): number {
@@ -84,6 +98,7 @@ export interface TurnView {
   realmName: string;
   compass: CompassOption[];
   briefing: { title: string; items: { text: string }[] }[];
+  destiny?: { storylineKey: string; stage: number; phase: string; waitingYears: number; rewards: string[] };
 }
 
 /** 天机简报：由存档种子+回合号确定性生成（同回合刷新不变化） */
@@ -99,11 +114,12 @@ export async function getTurnView(archiveId: string, deviceId: string): Promise<
   const state = await requireState(archiveId);
   let compass = await store.getCompass(archiveId, state.turnNo);
   if (!compass) {
-    compass = generateCompass(compassCtxFor(state), createRng(monthSeed(archiveId, state.turnNo)));
+    compass = generateCompass(await compassCtxFor(archiveId, state), createRng(monthSeed(archiveId, state.turnNo)));
     await store.saveCompass(archiveId, state.turnNo, compass);
   }
   const briefing = briefingFor(archiveSeedOf(archiveId), state.turnNo);
-  return { state, realmName: realmOfLevel(state.cultivation.level).name, compass, briefing };
+  const destiny = await store.getDestiny(archiveId) ?? undefined;
+  return { state, realmName: realmOfLevel(state.cultivation.level).name, compass, briefing, destiny };
 }
 
 /** 存档种子（v0：由 archiveId 派生；接入 DB 后读 archives.seed） */
@@ -121,6 +137,7 @@ export interface SettlementView {
     realmName: string;
     combat?: unknown;
     relation?: { npcName: string; intimacy: number; tier: number };
+    destiny?: { storyline: string; stage: number; stageName: string; optionLabel: string; rewardNote: string; nextPhase: string };
   };
   state: PlayerState;
 }
@@ -137,7 +154,7 @@ export async function submitAction(
   let compass = await store.getCompass(archiveId, state.turnNo);
   if (!compass) {
     // 惰性生成（建角后未打开开局页直接行动的场景）
-    compass = generateCompass(compassCtxFor(state), createRng(monthSeed(archiveId, state.turnNo)));
+    compass = generateCompass(await compassCtxFor(archiveId, state), createRng(monthSeed(archiveId, state.turnNo)));
     await store.saveCompass(archiveId, state.turnNo, compass);
   }
   const existing = await store.getTurnRecord(archiveId, state.turnNo);
@@ -185,9 +202,49 @@ export async function submitAction(
   }
 
   // 应用结算（战斗失败的修为倒退在 resolvedCultivation 中统一处理）
+  let nextCultivation = resolvedCultivation(state, outcome);
+  let currencyReward = 0;
+
+  // 天命推进：选中【天命】选项 → 应用阶段效果并推进（六章一）
+  let destinyDelta: { storyline: string; stage: number; stageName: string; optionLabel: string; rewardNote: string; nextPhase: string } | undefined;
+  if (option.destinyFlag) {
+    const destiny = await store.getDestiny(archiveId);
+    if (destiny && destiny.phase === "awaiting") {
+      const script = stageScript(destiny.storylineKey, destiny.stage);
+      // 罗盘 destiny 选项按 script.options 顺序注入，取位次
+      const destinyIdxs = compass.filter((o) => o.destinyFlag).map((o) => o.idx);
+      const choiceRank = destinyIdxs.indexOf(option.idx);
+      const chosen = script.options[choiceRank >= 0 ? choiceRank : 0]!;
+      for (const eff of chosen.effects) {
+        if (eff.type === "exp" && eff.target === "cultivation") {
+          nextCultivation = addCultivationExp(nextCultivation, eff.value ?? 0).state;
+        } else if (eff.type === "currency") {
+          currencyReward += eff.value ?? 0;
+        }
+      }
+      const nextStage = destiny.stage >= 6 ? 6 : destiny.stage + 1;
+      const nextPhase = destiny.stage >= 6 ? "finale" : "awaiting";
+      await store.saveDestiny(archiveId, {
+        ...destiny,
+        stage: nextStage,
+        phase: nextPhase,
+        waitingYears: 0,
+        choices: [...destiny.choices, { stage: destiny.stage, optionLabel: chosen.label, turnNo }],
+        rewards: [...destiny.rewards, chosen.rewardNote],
+      });
+      destinyDelta = {
+        storyline: destiny.storylineKey, stage: destiny.stage, stageName: script.name,
+        optionLabel: chosen.label, rewardNote: chosen.rewardNote, nextPhase,
+      };
+    }
+  }
+
   const updated: PlayerState = {
     ...state,
-    cultivation: resolvedCultivation(state, outcome),
+    cultivation: nextCultivation,
+    currencies: currencyReward > 0
+      ? { ...state.currencies, low: (state.currencies.low ?? 0) + currencyReward }
+      : state.currencies,
   };
 
   const nar = await narrative.narrate({
@@ -196,6 +253,7 @@ export async function submitAction(
     levelsGained: outcome.levelsGained,
     combat: outcome.combatResult,
     relation: relationDelta,
+    destiny: destinyDelta,
     nextMonth: state.gameMonth + 1,
   });
 
@@ -203,7 +261,7 @@ export async function submitAction(
   await store.appendTurnRecord({
     archiveId, turnNo, seed: monthSeed(archiveId, turnNo),
     actionKind: outcome.actionKind, actionInput: { option: option.idx, label: option.label },
-    engineDelta: { cultivationGain: outcome.cultivationGain, levelsGained: outcome.levelsGained, relation: relationDelta },
+    engineDelta: { cultivationGain: outcome.cultivationGain, levelsGained: outcome.levelsGained, relation: relationDelta, destiny: destinyDelta },
     narrative: nar.narrative, modelMeta: nar.modelMeta,
   });
 
@@ -217,6 +275,7 @@ export async function submitAction(
       realmName: realmOfLevel(updated.cultivation.level).name,
       combat: outcome.combatResult,
       relation: relationDelta,
+      destiny: destinyDelta,
     },
     state: updated,
   };
@@ -245,11 +304,12 @@ export async function nextMonth(archiveId: string, deviceId: string, turnNo: num
   const updated: PlayerState = { ...state, turnNo: state.turnNo + 1, gameYear, gameMonth, age, cultivation: { ...state.cultivation, lifespanYears } };
   await store.savePlayerState(archiveId, updated);
 
-  const compass = generateCompass(compassCtxFor(updated), createRng(monthSeed(archiveId, updated.turnNo)));
+  const compass = generateCompass(await compassCtxFor(archiveId, updated), createRng(monthSeed(archiveId, updated.turnNo)));
   await store.saveCompass(archiveId, updated.turnNo, compass);
+  const destiny = await store.getDestiny(archiveId) ?? undefined;
   return {
     state: updated, realmName: realmOfLevel(updated.cultivation.level).name, compass,
-    briefing: briefingFor(archiveSeedOf(archiveId), updated.turnNo),
+    briefing: briefingFor(archiveSeedOf(archiveId), updated.turnNo), destiny,
   };
 }
 

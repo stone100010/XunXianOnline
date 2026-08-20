@@ -55,6 +55,17 @@ export interface GameStore {
   saveNpcs(archiveId: string, npcs: NpcProfile[]): Promise<void>;
   getRelations(archiveId: string): Promise<StoredRelation[]>;
   saveRelations(archiveId: string, relations: StoredRelation[]): Promise<void>;
+  getDestiny(archiveId: string): Promise<DestinyProgress | null>;
+  saveDestiny(archiveId: string, destiny: DestinyProgress): Promise<void>;
+}
+
+export interface DestinyProgress {
+  storylineKey: string;
+  stage: number;                  // 1-6
+  phase: "awaiting" | "progressing" | "completed" | "finale";
+  waitingYears: number;           // 已等待年数
+  choices: { stage: number; optionLabel: string; turnNo: number }[];
+  rewards: string[];
 }
 
 class MemoryStore implements GameStore {
@@ -65,6 +76,7 @@ class MemoryStore implements GameStore {
   private inventory = new Map<string, InventoryItem[]>();
   private npcs = new Map<string, NpcProfile[]>();
   private relations = new Map<string, StoredRelation[]>();
+  private destiny = new Map<string, DestinyProgress>();
 
   async createArchive(meta: ArchiveMeta, state: PlayerState) {
     this.archives.set(meta.id, meta);
@@ -136,6 +148,12 @@ class MemoryStore implements GameStore {
   }
   async saveRelations(archiveId: string, relations: StoredRelation[]) {
     this.relations.set(archiveId, relations);
+  }
+  async getDestiny(archiveId: string) {
+    return this.destiny.get(archiveId) ?? null;
+  }
+  async saveDestiny(archiveId: string, destiny: DestinyProgress) {
+    this.destiny.set(archiveId, destiny);
   }
 }
 

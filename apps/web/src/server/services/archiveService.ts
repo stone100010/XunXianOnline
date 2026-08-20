@@ -19,7 +19,7 @@ export async function createArchive(deviceId: string, slot: number, input: Creat
   const seed = hashSeed(deviceId, slot, input.name, Date.now());
   const rng = createRng(seed);
   const archiveId = crypto.randomUUID();
-  const { state } = createCharacter({ ...input, archiveId }, rng);
+  const { state, pack } = createCharacter({ ...input, archiveId }, rng);
 
   // 碰撞防护：重掷道果码直到唯一
   let code = generateDaoFruitCode(rng.next);
@@ -39,6 +39,11 @@ export async function createArchive(deviceId: string, slot: number, input: Creat
   }));
   await store.saveNpcs(archiveId, npcs);
   await store.saveRelations(archiveId, relations);
+  // 天命主线初始化：绑定开局包对应主线，第 1 阶段待天命之召
+  await store.saveDestiny(archiveId, {
+    storylineKey: pack.destinyKey, stage: 1, phase: "awaiting",
+    waitingYears: 0, choices: [], rewards: [],
+  });
   return meta;
 }
 
