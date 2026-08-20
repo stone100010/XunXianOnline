@@ -70,6 +70,21 @@ function GameInner() {
     if (!res.ok) { setErr(json.error?.message ?? "终章失败"); return; }
     setFinaleReview(json);
   }
+  const [inheritOpen, setInheritOpen] = useState(false);
+  const [heirName, setHeirName] = useState("");
+  const [inheritMsg, setInheritMsg] = useState<string | null>(null);
+  async function doInherit() {
+    if (heirName.trim().length < 1) { setErr("请输入继承者姓名"); return; }
+    const res = await fetch(`/api/archives/${archiveId}/inherit`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ heirName: heirName.trim() }),
+    });
+    const json = await res.json();
+    if (!res.ok) { setErr(json.error?.message ?? "传承失败"); return; }
+    setInheritMsg(json.narrative);
+    setInheritOpen(false);
+    void load();
+  }
   const [btResult, setBtResult] = useState<{ success: boolean; rate: number; narrative: string; realmName: string } | null>(null);
   const [btBusy, setBtBusy] = useState(false);
   async function attemptBreakthrough() {
@@ -322,6 +337,29 @@ function GameInner() {
           {finaleReview.rewards.length > 0 && (
             <div style={{ marginTop: 8, fontSize: 12, color: "var(--gold)" }}>🏅 天命奖励：{finaleReview.rewards.join("；")}</div>
           )}
+        </div>
+      )}
+
+      {!inheritMsg && (
+        <div className="card" style={{ borderColor: "var(--jade)" }}>
+          <div style={{ fontSize: 13 }}>🏛️ 道统传承{view.state.cultivation.lifespanYears <= 20 ? "（⚠️ 寿元将尽，宜早定衣钵）" : ""}</div>
+          {!inheritOpen ? (
+            <button onClick={() => setInheritOpen(true)} style={{ marginTop: 8, width: "100%", padding: 10, borderRadius: 6, border: "1px solid var(--jade)", background: "#3f9d7a22", color: "var(--jade)" }}>
+              立衣钵传人（继承者续玩）
+            </button>
+          ) : (
+            <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+              <input value={heirName} onChange={(e) => setHeirName(e.target.value)} placeholder="继承者姓名"
+                style={{ flex: 1, background: "#0000", border: "1px solid var(--jade)", borderRadius: 6, padding: "8px 10px", color: "var(--ink)" }} />
+              <button onClick={doInherit} style={{ background: "var(--jade)", color: "#111", border: 0, borderRadius: 6, padding: "8px 12px" }}>传法</button>
+            </div>
+          )}
+        </div>
+      )}
+      {inheritMsg && (
+        <div className="card" style={{ borderColor: "var(--jade)" }}>
+          <div style={{ textAlign: "center", color: "var(--jade)", fontWeight: 700 }}>🏛️ 道统绵延</div>
+          <div style={{ whiteSpace: "pre-wrap", marginTop: 8, fontSize: 13, lineHeight: 1.8 }}>{inheritMsg}</div>
         </div>
       )}
 
