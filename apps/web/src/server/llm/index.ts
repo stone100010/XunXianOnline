@@ -72,6 +72,7 @@ export interface NarrativeInput {
   combat?: CombatResult;
   relation?: { npcName: string; intimacy: number; tier: number };
   destiny?: { storyline: string; stage: number; stageName: string; optionLabel: string; rewardNote: string; nextPhase: string };
+  realm?: { 名称: string; 游历步骤: string[]; 收获: { 修为: number; 灵石: number; 物品: string[]; 传承: string[] } };
   currencyDelta?: Partial<Record<string, number>>;
   nextMonth: number;
 }
@@ -132,6 +133,11 @@ function buildFacts(input: NarrativeInput) {
       对象: input.relation.npcName,
       亲密度变化: input.relation.intimacy > 0 ? `+${input.relation.intimacy}` : String(input.relation.intimacy),
       关系层级: ["陌路", "一面之缘", "熟识", "道友", "心腹/道侣"][input.relation.tier],
+    } : null,
+    秘境游历: input.realm ? {
+      名称: input.realm.名称,
+      步骤: input.realm.游历步骤,
+      收获: input.realm.收获,
     } : null,
     天命推进: input.destiny ? {
       主线: input.destiny.storyline,

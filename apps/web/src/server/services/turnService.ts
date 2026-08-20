@@ -1,11 +1,11 @@
 // TurnService：回合处理管线（docs/02 §3）
 // 意图归一 → 引擎结算 → 罗盘生成 → LLM 叙事（先算后写/模板降级）→ 持久化
 import {
-  addCultivationExp, applyInteraction, buildBriefing, createRng, evolveWorld, expToNextLevel,
-  generateCompass, hashSeed, parseIntent, realmOfLevel, resolveCombat,
-  rollDomainSeeds, truePower,
+  addCultivationExp, applyInteraction, buildBriefing, canEnter, createRng, evolveWorld,
+  expToNextLevel, generateCompass, hashSeed, parseIntent, realmOfLevel, resolveCombat,
+  rollDomainSeeds, SECRET_REALM_TEMPLATES, truePower,
 } from "@xunxian/engine";
-import type { CompassOption } from "@xunxian/engine";
+import type { CompassOption, Rng } from "@xunxian/engine";
 import type { PlayerState } from "@xunxian/shared";
 import { store } from "../store.js";
 import type { StoredRelation } from "../store.js";
@@ -13,7 +13,13 @@ import { stageScript } from "@xunxian/content";
 import { buildProviderFromEnv, NarrativeService } from "../llm/index.js";
 import { ServiceError } from "./archiveService.js";
 
-const narrative = new NarrativeService(buildProviderFromEnv()); // env 配置 GLM 即启用真实叙事，否则模板降级
+const narrative = new NarrativeService(buildProviderFromEnv());
+
+// 秘境物品显示名（ref_items 表的代码级映射，入库后由后台接管）
+const SECRET_ITEM_NAMES: Record<string, string> = {
+  mo_crystal: "魔晶", ling_herb: "灵草", old_ring: "古修储戒",
+  mo_gong_fragment: "魔功残卷", loot_stones: "灵石",
+}; // env 配置 GLM 即启用真实叙事，否则模板降级
 
 // ── 行动结算原语（v0：修炼/探索/战斗/闭关骨架，后续接 actions 注册表）──
 interface ActionOutcome {
@@ -21,6 +27,7 @@ interface ActionOutcome {
   cultivationGain: number;
   levelsGained: number;
   combatResult?: ReturnType<typeof resolveCombat>;
+  realmResult?: RealmResult;
   narrativeInput: { actionLabel: string };
 }
 
@@ -33,9 +40,13 @@ function settleAction(state: PlayerState, option: CompassOption, rng: ReturnType
   const gain = Math.max(1, Math.round(baseExp * rootMod * kindFactor));
   const r = addCultivationExp(state.cultivation, gain);
 
-  // 历练探索 20% 概率遭遇战斗（临时妖兽对手，后续接事件链/妖兽表）
+  // 秘境探索（payload.type === "realm"）：事件链状态机完整走一遍（docs/06 v1 单次游历模式）
+  let realmResult: ActionOutcome["realmResult"];
   let combatResult: ActionOutcome["combatResult"];
-  if (kind === "lishi" && rng.chance(0.2)) {
+  if (option.payload?.type === "realm" && typeof option.payload.key === "string") {
+    realmResult = runSecretRealm(option.payload.key, state, rng);
+  } else if (kind === "lishi" && rng.chance(0.2)) {
+    // 普通历练 20% 概率遭遇妖兽战斗
     combatResult = resolveCombat({
       nature: "yaoshou",
       foe: {
@@ -57,8 +68,52 @@ function settleAction(state: PlayerState, option: CompassOption, rng: ReturnType
     cultivationGain: gain,
     levelsGained: r.levelsGained,
     combatResult,
+    realmResult,
     narrativeInput: { actionLabel: option.label },
   };
+}
+
+// ── 秘境游历（events 执行器驱动，确定性：月种子）──
+interface RealmResult {
+  realmName: string;
+  steps: { node: string; option: string; passed: boolean }[];
+  expGain: number;
+  currencyGain: number;
+  items: string[];
+  unlocks: string[];
+  deathEscape?: boolean;
+}
+
+function runSecretRealm(chainKey: string, state: PlayerState, rng: Rng): RealmResult {
+  const def = SECRET_REALM_TEMPLATES.find((d) => d.key === chainKey);
+  if (!def) throw new ServiceError(400, `未知秘境: ${chainKey}`);
+  if (!canEnter(def, { realmLevel: state.cultivation.level, flags: {}, turnNo: state.turnNo })) {
+    throw new ServiceError(403, "修为不足以踏入此地");
+  }
+  const result: RealmResult = {
+    realmName: def.name, steps: [], expGain: 0, currencyGain: 0, items: [], unlocks: [],
+  };
+  let currentId = def.nodes[0]!.id;
+  let guard = 0;
+  while (currentId && guard++ < 10) {
+    const node = def.nodes.find((n) => n.id === currentId);
+    if (!node) break;
+    // v1 单次游历：按风险权重自动抉择（稳健选项权重高），判定失败即提前离场
+    const weighted = node.options.map((o, i) => [i, o.riskFlag ? 1 : 2.5] as [number, number]);
+    const choiceIdx = rng.weighted(weighted);
+    const option = node.options[choiceIdx]!;
+    const passed = option.judgment ? rng.chance(option.judgment.successRate) : true;
+    result.steps.push({ node: node.id, option: option.label, passed });
+    if (!passed) break;
+    for (const eff of option.effects) {
+      if (eff.type === "exp" && eff.target === "cultivation") result.expGain += eff.value ?? 0;
+      else if (eff.type === "currency") result.currencyGain += eff.value ?? 0;
+      else if (eff.type === "item" && eff.ref) result.items.push(eff.ref);
+      else if (eff.type === "unlock" && eff.ref) result.unlocks.push(eff.ref);
+    }
+    currentId = option.next ?? "";
+  }
+  return result;
 }
 
 // ── 罗盘上下文组装（v0：天命/因缘池由剧本层接入，暂用兜底）──
@@ -68,7 +123,7 @@ async function compassCtxFor(archiveId: string, state: PlayerState) {
     gameMonth: state.gameMonth,
     destinyOptions: [] as { label: string; riskFlag?: boolean; destinyFlag?: boolean }[],
     karmaOptions: [] as { label: string }[],
-    exploreOptions: [] as { label: string }[],
+    exploreOptions: [] as { label: string; payload?: Record<string, unknown> }[],
     socialOptions: [] as { label: string }[],
     artOptions: [] as { label: string }[],
     secludeOptions: [] as { label: string }[],
@@ -82,6 +137,17 @@ async function compassCtxFor(archiveId: string, state: PlayerState) {
         riskFlag: o.riskFlag,
         destinyFlag: true,
       }));
+    }
+  }
+  // 历练探索：可进入的秘境（docs/06 内置模板；同月确定性出现）
+  const exploreRng = createRng(hashSeed(archiveId, "realms", state.turnNo));
+  for (const def of SECRET_REALM_TEMPLATES) {
+    if (canEnter(def, { realmLevel: state.cultivation.level, flags: {}, turnNo: state.turnNo })
+        && exploreRng.chance(0.6)) {
+      ctx.exploreOptions.push({
+        label: `【机缘·${def.name}】${def.nodes[0]!.synopsis.slice(0, 18)}…`,
+        payload: { type: "realm", key: def.key },
+      });
     }
   }
   return ctx;
@@ -138,6 +204,7 @@ export interface SettlementView {
     combat?: unknown;
     relation?: { npcName: string; intimacy: number; tier: number };
     destiny?: { storyline: string; stage: number; stageName: string; optionLabel: string; rewardNote: string; nextPhase: string };
+    realm?: { realmName: string; steps: { node: string; option: string; passed: boolean }[]; expGain: number; currencyGain: number; items: string[]; unlocks: string[] };
   };
   state: PlayerState;
 }
@@ -247,21 +314,42 @@ export async function submitAction(
       : state.currencies,
   };
 
+  // 秘境收益落地（修为补加 + 灵石 + 物品入包；解锁记入史册 delta）
+  let finalState = updated;
+  if (outcome.realmResult) {
+    const realm = outcome.realmResult;
+    finalState = {
+      ...updated,
+      cultivation: addCultivationExp(updated.cultivation, realm.expGain).state,
+      currencies: realm.currencyGain > 0
+        ? { ...updated.currencies, low: (updated.currencies.low ?? 0) + realm.currencyGain }
+        : updated.currencies,
+    };
+    for (const itemKey of realm.items) {
+      await store.addItem(archiveId, { key: itemKey, name: SECRET_ITEM_NAMES[itemKey] ?? itemKey, category: "caiyao", qty: 1 }, state.turnNo);
+    }
+  }
+
   const nar = await narrative.narrate({
     state, actionLabel: outcome.narrativeInput.actionLabel,
-    cultivationGain: outcome.cultivationGain,
+    cultivationGain: outcome.cultivationGain + (outcome.realmResult?.expGain ?? 0),
     levelsGained: outcome.levelsGained,
     combat: outcome.combatResult,
     relation: relationDelta,
     destiny: destinyDelta,
+    realm: outcome.realmResult ? {
+      名称: outcome.realmResult.realmName,
+      游历步骤: outcome.realmResult.steps.map((st) => `${st.option}${st.passed ? "（成功）" : "（受挫止步）"}`),
+      收获: { 修为: outcome.realmResult.expGain, 灵石: outcome.realmResult.currencyGain, 物品: outcome.realmResult.items, 传承: outcome.realmResult.unlocks },
+    } : undefined,
     nextMonth: state.gameMonth + 1,
   });
 
-  await store.savePlayerState(archiveId, updated);
+  await store.savePlayerState(archiveId, finalState);
   await store.appendTurnRecord({
     archiveId, turnNo, seed: monthSeed(archiveId, turnNo),
     actionKind: outcome.actionKind, actionInput: { option: option.idx, label: option.label },
-    engineDelta: { cultivationGain: outcome.cultivationGain, levelsGained: outcome.levelsGained, relation: relationDelta, destiny: destinyDelta },
+    engineDelta: { cultivationGain: outcome.cultivationGain, levelsGained: outcome.levelsGained, relation: relationDelta, destiny: destinyDelta, realm: outcome.realmResult },
     narrative: nar.narrative, modelMeta: nar.modelMeta,
   });
 
@@ -272,12 +360,13 @@ export async function submitAction(
     delta: {
       cultivationGain: outcome.cultivationGain,
       levelsGained: outcome.levelsGained,
-      realmName: realmOfLevel(updated.cultivation.level).name,
+      realmName: realmOfLevel(finalState.cultivation.level).name,
       combat: outcome.combatResult,
       relation: relationDelta,
       destiny: destinyDelta,
+      realm: outcome.realmResult,
     },
-    state: updated,
+    state: finalState,
   };
 }
 
