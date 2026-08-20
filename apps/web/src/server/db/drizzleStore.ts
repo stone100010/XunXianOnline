@@ -189,6 +189,20 @@ export class DrizzleStore implements GameStore {
     });
   }
 
+  async listTurnRecords(archiveId: string, limit = 100): Promise<TurnRecord[]> {
+    const rows = await this.pool.query<{
+      archive_id: string; turn_no: number; seed: string; action_kind: string;
+      action_input: unknown; engine_delta: unknown; narrative: string; model_meta: unknown;
+    }>(
+      "SELECT archive_id, turn_no, seed, action_kind, action_input, engine_delta, narrative, model_meta FROM turn_records WHERE archive_id = $1 ORDER BY turn_no DESC LIMIT $2",
+      [archiveId, limit]);
+    return rows.rows.map((r) => ({
+      archiveId: r.archive_id, turnNo: r.turn_no, seed: Number(r.seed),
+      actionKind: r.action_kind, actionInput: r.action_input,
+      engineDelta: r.engine_delta, narrative: r.narrative, modelMeta: r.model_meta,
+    }));
+  }
+
   async getInventory(archiveId: string): Promise<InventoryItem[]> {
     const res = await this.pool.query<{ item_key: string; name: string; category: string; qty: number }>(
       "SELECT item_key, name, category, qty FROM inventory_items WHERE archive_id = $1 ORDER BY acquired_turn DESC", [archiveId]);

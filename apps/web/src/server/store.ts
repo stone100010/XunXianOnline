@@ -47,6 +47,7 @@ export interface GameStore {
   saveCompass(archiveId: string, turnNo: number, options: CompassOption[]): Promise<void>;
   getTurnRecord(archiveId: string, turnNo: number): Promise<TurnRecord | null>;
   appendTurnRecord(record: TurnRecord): Promise<void>;
+  listTurnRecords(archiveId: string, limit?: number): Promise<TurnRecord[]>;
   getInventory(archiveId: string): Promise<InventoryItem[]>;
   addItem(archiveId: string, item: Omit<InventoryItem, "acquiredTurn">, turnNo: number): Promise<void>;
   spendCurrency(archiveId: string, amount: number): Promise<boolean>;
@@ -99,6 +100,12 @@ class MemoryStore implements GameStore {
   }
   async appendTurnRecord(record: TurnRecord) {
     this.turns.set(`${record.archiveId}:${record.turnNo}`, record);
+  }
+  async listTurnRecords(archiveId: string, limit = 100) {
+    return [...this.turns.values()]
+      .filter((t) => t.archiveId === archiveId)
+      .sort((a, b) => b.turnNo - a.turnNo)
+      .slice(0, limit);
   }
   async getInventory(archiveId: string) {
     return this.inventory.get(archiveId) ?? [];

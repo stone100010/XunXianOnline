@@ -39,7 +39,7 @@ function GameInner() {
   const [settle, setSettle] = useState<Settlement | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  const [tab, setTab] = useState<"month" | "market" | "bag" | "npc">("month");
+  const [tab, setTab] = useState<"month" | "market" | "bag" | "npc" | "history">("month");
   const [shelf, setShelf] = useState<{ tierName: string; items: { key: string; name: string; price: number; desc: string; grade: number }[]; discountRate: number } | null>(null);
   const [bag, setBag] = useState<{ key: string; name: string; qty: number; category: string }[] | null>(null);
   const [marketMsg, setMarketMsg] = useState("");
@@ -52,6 +52,12 @@ function GameInner() {
     setShelf(json.shelf);
   }
   const [npcList, setNpcList] = useState<{ name: string; profession: string; realmLevel: number; traits: string[]; goal: string; intimacy: number; tierName: string }[] | null>(null);
+  const [history, setHistory] = useState<{ turnNo: number; actionKind: string; narrative: string }[] | null>(null);
+  async function openHistory() {
+    const res = await fetch(`/api/archives/${archiveId}/history`);
+    const json = await res.json();
+    setHistory(json.records ?? []);
+  }
   async function openNpcs() {
     const res = await fetch(`/api/archives/${archiveId}/npcs`);
     const json = await res.json();
@@ -155,8 +161,8 @@ function GameInner() {
 
       {/* 页签 */}
       <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-        {([["month", "🌙 本月"], ["market", "🏪 坊市"], ["bag", "🎒 背包"], ["npc", "👥 道缘"]] as const).map(([k, label]) => (
-          <button key={k} onClick={() => { setTab(k); if (k === "bag") void openBag(); if (k === "market" && !shelf) void openMarket("zhengshi"); if (k === "npc") void openNpcs(); }}
+        {([["month", "🌙 本月"], ["market", "🏪 坊市"], ["bag", "🎒 背包"], ["npc", "👥 道缘"], ["history", "📜 仙史"]] as const).map(([k, label]) => (
+          <button key={k} onClick={() => { setTab(k); if (k === "bag") void openBag(); if (k === "market" && !shelf) void openMarket("zhengshi"); if (k === "npc") void openNpcs(); if (k === "history") void openHistory(); }}
             style={{ flex: 1, padding: 10, borderRadius: 8, border: tab === k ? "1px solid var(--gold)" : "1px solid var(--gold-dim)", background: tab === k ? "#c8a24b22" : "#0000", color: tab === k ? "var(--gold)" : "var(--ink-dim)", fontSize: 14 }}>
             {label}
           </button>
@@ -216,6 +222,23 @@ function GameInner() {
                 <div style={{ height: 6, width: `${n.intimacy}%`, background: "var(--gold)", borderRadius: 3 }} />
               </div>
             </div>
+          ))}
+        </div>
+      )}
+
+      {tab === "history" && (
+        <div className="card">
+          <div style={{ textAlign: "center", color: "var(--gold)" }}>📜【仙途史册】（只读，不可回溯更改）</div>
+          {history && history.length === 0 && <p style={{ fontSize: 13, color: "var(--ink-dim)", marginTop: 8 }}>史册空空，仙途尚未开始。</p>}
+          {history?.map((h) => (
+            <details key={h.turnNo} className="card" style={{ margin: "10px 0 0" }}>
+              <summary style={{ fontSize: 13, cursor: "pointer", color: "var(--gold)" }}>
+                第 {h.turnNo + 1} 月 · {h.actionKind}
+              </summary>
+              <div style={{ whiteSpace: "pre-wrap", fontSize: 13, lineHeight: 1.8, marginTop: 8, color: "var(--ink)" }}>
+                {h.narrative}
+              </div>
+            </details>
           ))}
         </div>
       )}
