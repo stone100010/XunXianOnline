@@ -34,16 +34,20 @@ export function openAiCompatible(key: string, baseUrl: string, apiKey: string, m
           ],
           max_tokens: req.maxTokens ?? 2000,
           temperature: req.temperature ?? 0.8,
+          // GLM-4.5+/5.x 为推理模型：叙事场景禁用思考链（不兼容网关会忽略该字段）
+          thinking: { type: "disabled" },
         }),
         signal: AbortSignal.timeout(45_000),
       });
       if (!res.ok) throw new Error(`LLM ${key} HTTP ${res.status}`);
       const json = (await res.json()) as {
-        choices: { message: { content: string } }[];
+        choices: { message: { content: string; reasoning_content?: string } }[];
         usage?: { prompt_tokens: number; completion_tokens: number };
       };
+      const msg = json.choices[0]?.message;
+      const text = msg?.content?.trim() || msg?.reasoning_content?.trim() || "";
       return {
-        text: json.choices[0]?.message?.content ?? "",
+        text,
         provider: key,
         model,
         usage: {
@@ -86,8 +90,7 @@ const SYSTEM_PROMPT = `你是仙侠叙事者，为月令回合制修仙模拟器
 export class NarrativeService {
   constructor(private provider: LlmProvider | null) {}
 
-  async narrate(input: NarrativeInput): Promise<NarrativeOutput> {
-    const fallback = templateNarrative(input);
+  async narrate(input: NarrativeInput): Promise<NarrativeOutput> {    const fallback = templateNarrative(input);
     if (!this.provider) return { narrative: fallback, degraded: true, modelMeta: { provider: "template" } };
     try {
       const res = await this.provider.chat({
@@ -149,4 +152,17 @@ export function templateNarrative(input: NarrativeInput): string {
   }
   lines.push(`月光如水，新的机缘在下月等你。`);
   return lines.join("\n");
+}
+
+// ── 环境装配：LLM_BASE_URL/LLM_API_KEY/LLM_MODEL → 默认供应商（智谱 GLM 等）──
+export function buildProviderFromEnv(): LlmProvider | null {
+  const baseUrl = process.env.LLM_BASE_URL;
+  const apiKey = process.env.LLM_API_KEY;
+  const model = process.env.LLM_MODEL;
+  if (!baseUrl || !apiKey || !model) {
+    console.warn("[llm] 未配置 LLM 环境变量，叙事使用模板降级");
+    return null;
+  }
+  const key = process.env.LLM_PROVIDER_KEY ?? "default";
+  return openAiCompatible(key, baseUrl, apiKey, model);
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getOrCreateDeviceId } from "@/server/device.js";
+import { storeReady } from "@/server/store.js";
 import { submitAction } from "@/server/services/turnService.js";
 import { ServiceError } from "@/server/services/archiveService.js";
 
@@ -13,6 +14,7 @@ const ActionSchema = z.object({
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const deviceId = await getOrCreateDeviceId();
+    await storeReady;
     const { id } = await params;
     const body = ActionSchema.parse(await req.json());
     return NextResponse.json(await submitAction(id, deviceId, body.turnNo, body));

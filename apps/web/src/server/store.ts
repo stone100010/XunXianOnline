@@ -1,4 +1,4 @@
-// 存储抽象：内存实现先行（开发期无 PG 也可全流程游玩），PG/Drizzle 实现按同接口接入
+// 存储选择：配置 DATABASE_URL → PostgreSQL（DrizzleStore），否则内存实现（开发兜底）
 import type { PlayerState } from "@xunxian/shared";
 import type { CompassOption } from "@xunxian/engine";
 
@@ -110,6 +110,44 @@ class MemoryStore implements GameStore {
   }
 }
 
-// 开发期全局单例（防 HMR 丢档）；接 PG 时替换为 DrizzleStore
-const g = globalThis as unknown as { __xunxianStore?: GameStore };
-export const store: GameStore = (g.__xunxianStore ??= new MemoryStore());
+// 存储选择：配置 DATABASE_URL → DrizzleStore（PostgreSQL），否则内存实现。
+// holder.impl 同步装配（pg.Pool 惰性连接），建表经 storeReady 异步完成，API 路由入口 await 它。
+const g = globalThis as unknown as { __xunxianHolder?: { impl: GameStore; ready: Promise<void> } };
+
+export const holder = (g.__xunxianHolder ??= (() => {
+  const url = process.env.DATABASE_URL;
+  const boot: { impl: GameStore; ready: Promise<void> } = {
+    impl: new MemoryStore(),
+    ready: Promise.resolve(),
+  };
+  if (!url) {
+    console.warn("[store] 未配置 DATABASE_URL，使用内存存储（重启丢档）");
+    return boot;
+  }
+  let readyResolve: () => void = () => {};
+  boot.ready = new Promise<void>((r) => (readyResolve = r));
+  void (async () => {
+    try {
+      const { DrizzleStore } = await import("./db/drizzleStore.js");
+      const s = new DrizzleStore(url);
+      await s.init();
+      boot.impl = s;
+      console.log("[store] PostgreSQL 已连接");
+    } catch (e) {
+      console.error("[store] PostgreSQL 连接失败，回退内存存储：", e);
+    } finally {
+      readyResolve();
+    }
+  })();
+  return boot;
+})());
+
+/** API 路由入口 await，确保存储实现与建表就绪 */
+export const storeReady: Promise<void> = holder.ready;
+
+export const store: GameStore = new Proxy({} as GameStore, {
+  get(_t, prop) {
+    const v = Reflect.get(holder.impl as object, prop);
+    return typeof v === "function" ? (v as (...a: unknown[]) => unknown).bind(holder.impl) : v;
+  },
+});

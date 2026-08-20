@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getOrCreateDeviceId } from "@/server/device.js";
+import { storeReady } from "@/server/store.js";
 import { buy, getShelf, listInventory } from "@/server/services/marketService.js";
 import { ServiceError } from "@/server/services/archiveService.js";
 
@@ -15,6 +16,7 @@ function fail(e: unknown) {
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const deviceId = await getOrCreateDeviceId();
+    await storeReady;
     const { id } = await params;
     const url = new URL(req.url);
     if (url.searchParams.get("what") === "inventory") {
@@ -38,6 +40,7 @@ const BuySchema = z.object({
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const deviceId = await getOrCreateDeviceId();
+    await storeReady;
     const { id } = await params;
     const body = BuySchema.parse(await req.json());
     return NextResponse.json(await buy(id, deviceId, body));

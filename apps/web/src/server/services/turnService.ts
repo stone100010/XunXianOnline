@@ -8,10 +8,10 @@ import {
 import type { CompassOption } from "@xunxian/engine";
 import type { PlayerState } from "@xunxian/shared";
 import { store } from "../store.js";
-import { NarrativeService } from "../llm/index.js";
+import { buildProviderFromEnv, NarrativeService } from "../llm/index.js";
 import { ServiceError } from "./archiveService.js";
 
-const narrative = new NarrativeService(null); // LLM 未配置 → 模板降级；接 provider 后升级
+const narrative = new NarrativeService(buildProviderFromEnv()); // env 配置 GLM 即启用真实叙事，否则模板降级
 
 // ── 行动结算原语（v0：修炼/探索/战斗/闭关骨架，后续接 actions 注册表）──
 interface ActionOutcome {

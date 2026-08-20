@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getOrCreateDeviceId } from "@/server/device.js";
+import { storeReady } from "@/server/store.js";
 import { store } from "@/server/store.js";
 import { createArchive, restoreArchive, ServiceError } from "@/server/services/archiveService.js";
 
@@ -25,6 +26,7 @@ function fail(e: unknown) {
 
 export async function GET() {
   const deviceId = await getOrCreateDeviceId();
+    await storeReady;
   const archives = await store.listArchives(deviceId);
   const states = await Promise.all(
     archives.map(async (a) => ({ ...a, state: await store.getPlayerState(a.id) })),
@@ -35,6 +37,7 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const deviceId = await getOrCreateDeviceId();
+    await storeReady;
     const { slot, ...character } = CreateSchema.parse(await req.json());
     const meta = await createArchive(deviceId, slot, character);
     return NextResponse.json({ archive: meta });
@@ -49,6 +52,7 @@ export async function POST(req: Request) {
 export async function PUT(req: Request) {
   try {
     const deviceId = await getOrCreateDeviceId();
+    await storeReady;
     const { code, slot } = RestoreSchema.parse(await req.json());
     const meta = await restoreArchive(deviceId, code, slot ?? 0);
     return NextResponse.json({ archive: meta });
