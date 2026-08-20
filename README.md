@@ -36,6 +36,26 @@
 └ docs/ ─────────────── 规划设计与技术方案（11 份）
 ```
 
+## ☁️ 部署
+
+### 自托管 / 内网（当前运行方式）
+```bash
+# 内网 PostgreSQL（.env 配置 DATABASE_URL）+ 智谱 GLM（LLM_*）
+pnpm install && pnpm --filter @xunxian/web build
+pnpm --filter @xunxian/web start        # 或 pm2/nexus 托管
+```
+
+### Vercel
+```bash
+# 1. Vercel 导入仓库（自动识别 vercel.json：pnpm 安装、Monorepo 构建香港区、API 60s）
+# 2. 环境变量：DATABASE_URL / LLM_BASE_URL / LLM_API_KEY / LLM_MODEL /
+#    ADMIN_PASSWORD / VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY
+# 3. 迁移（首次或 schema 变更时本地执行）：
+pnpm --filter @xunxian/web db:generate  # 生成 SQL 迁移（drizzle/ 目录）
+pnpm --filter @xunxian/web db:push      # 推送到 DATABASE_URL
+```
+> 注：运行时各服务亦具备幂等自建表能力（advisory lock 保护），迁移用于正式变更留痕。
+
 ## 📚 文档导航
 
 | 文档 | 内容 |
@@ -75,7 +95,8 @@ P1 地基 → P2 规则引擎 → P3 核心循环 → P4 LLM 层 → P5 主线�
 - 引擎 12 模块 78+ 单测（含 600 回合自走仿真不变量）
 - 全生命周期可玩：建角→决策罗盘/自由输入→战斗（命运骰子演出）→秘境游历→因缘际会年度事件→坊市议价→百艺经营→道缘往来→渡劫突破→天命六阶→终章封号→轮回转世
 - 天机简报/未竟仙途/仙途史册（只读防 SL）/admin 运营看板完整
-- 待办：道统传承（继承者续玩）、PWA/推送、数值表后台 CRUD、Vercel 部署
+- 全部规划功能已交付：道统传承、因缘际会年度事件、PWA 离线 + Web Push、
+  数值表后台 CRUD（货架热更）、Vercel 部署配置（vercel.json + drizzle 迁移）
 
 ```bash
 pnpm install && pnpm dev   # http://localhost:3000 即可开玩
