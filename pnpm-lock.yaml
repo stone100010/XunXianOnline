@@ -63,6 +63,9 @@ importers:
 
   packages/engine:
     dependencies:
+      '@xunxian/content':
+        specifier: workspace:*
+        version: link:../content
       '@xunxian/shared':
         specifier: workspace:*
         version: link:../shared

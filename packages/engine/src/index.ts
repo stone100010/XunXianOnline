@@ -5,3 +5,4 @@ export * from "./combat/index.js";
 export * from "./growth/index.js";
 export * from "./breakthrough/index.js";
 export * from "./compass/index.js";
+export * from "./character/index.js";
