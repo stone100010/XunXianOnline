@@ -19,7 +19,13 @@ export const DaoBaseStatSchema = z.object({
 });
 export type DaoBaseStat = z.infer<typeof DaoBaseStatSchema>;
 
-export const DaoBasesSchema = z.record(DaoBaseKeySchema, DaoBaseStatSchema);
+export const DaoBasesSchema = z.object({
+  wuxin: DaoBaseStatSchema,
+  daoxin: DaoBaseStatSchema,
+  genku: DaoBaseStatSchema,
+  qiyun: DaoBaseStatSchema,
+  xuema: DaoBaseStatSchema,
+});
 export type DaoBases = z.infer<typeof DaoBasesSchema>;
 
 // ── 先天道韵 ──
