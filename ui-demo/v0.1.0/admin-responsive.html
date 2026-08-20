@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>寻仙 · 管理后台 v0.1.0</title>
+<style>
+/* ═══════════ 寻仙 管理后台 v0.1.0 ═══════════
+   多端响应式：桌面=左侧导航 / 移动=底部Tab+抽屉
+   九大模块：看板·玩家·数值·剧本·LLM·推送·客服·审计·设置 */
+:root{
+  --bg:#f5f6f8;--card:#fff;--line:#e5e8ec;--ink:#1c2330;--dim:#7b8494;
+  --gold:#b98e2f;--gold-bg:#faf5e8;--blue:#3d6fd6;--blue-bg:#eef3fd;
+  --jade:#2e9c78;--jade-bg:#e9f7f1;--red:#cc4433;--red-bg:#fdeeea;
+  --shadow:0 1px 3px rgba(20,30,50,.06);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:"system-ui","Microsoft YaHei",sans-serif;font-size:13px}
+button{font-family:inherit;cursor:pointer}
+::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-thumb{background:#cfd4dc;border-radius:3px}
+
+/* ── 布局骨架 ── */
+#app{display:grid;grid-template-columns:216px 1fr;min-height:100vh}
+#side{background:#131a24;color:#cfd6e0;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto}
+#side .logo{padding:16px 14px 10px;color:#e8c877;font-weight:700;font-size:15px;letter-spacing:1px}
+#side .logo small{display:block;color:#5d6878;font-size:10px;font-weight:400;margin-top:2px}
+.group{padding:8px 8px 2px;font-size:10px;color:#5d6878;letter-spacing:1px}
+.nv{display:flex;align-items:center;gap:8px;padding:8px 10px;margin:1px 6px;border-radius:7px;color:#aab4c2;font-size:13px;cursor:pointer;border:none;background:none;width:calc(100% - 12px);text-align:left}
+.nv:hover{background:#1c2634;color:#e8ecf2}
+.nv.on{background:linear-gradient(90deg,#2a3a52,#1c2634);color:#e8c877}
+.nv .badge{margin-left:auto;background:var(--red);color:#fff;font-size:9px;border-radius:99px;padding:1px 6px}
+#side .foot{margin-top:auto;padding:12px;font-size:10px;color:#5d6878;border-top:1px solid #1e2836}
+
+#wrap{display:flex;flex-direction:column;min-width:0}
+#hd{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.92);backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--line);padding:0 18px;height:52px;display:flex;align-items:center;gap:12px}
+#hd .crumb{font-weight:600}
+#hd .crumb small{color:var(--dim);font-weight:400}
+#hd .search{flex:1;max-width:360px;margin-left:auto;height:32px;border:1px solid var(--line);border-radius:8px;
+  background:#fff;display:flex;align-items:center;padding:0 10px;color:var(--dim);font-size:12px}
+.env{padding:3px 10px;border-radius:99px;font-size:11px;background:var(--jade-bg);color:var(--jade);border:1px solid #bfe6d8}
+.env.gray{background:var(--gold-bg);color:var(--gold)}
+#burger{display:none;border:1px solid var(--line);background:#fff;border-radius:8px;width:32px;height:32px;font-size:15px}
+main{padding:16px 18px 80px;max-width:1200px;width:100%;margin:0 auto}
+section{display:none}section.on{display:block;animation:fade .25s}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}}
+
+/* ── 通用组件 ── */
+h2{font-size:16px;margin-bottom:4px}h2 small{font-size:11px;color:var(--dim);font-weight:400;margin-left:8px}
+.desc{color:var(--dim);font-size:12px;margin-bottom:14px}
+.grid{display:grid;gap:12px}
+.kpis{grid-template-columns:repeat(5,1fr)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;box-shadow:var(--shadow)}
+.kpi .l{font-size:11px;color:var(--dim)}
+.kpi .v{font-size:22px;font-weight:700;margin-top:4px;font-variant-numeric:tabular-nums}
+.kpi .d{font-size:10px;margin-top:2px}.up{color:var(--jade)}.dn{color:var(--red)}
+.kpi.warn .v{color:var(--red)}
+.h3{font-size:13px;font-weight:600;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
+.h3 .more{font-size:11px;color:var(--blue);font-weight:400;cursor:pointer}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;color:var(--dim);font-weight:500;padding:8px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:9px 8px;border-bottom:1px solid #f0f2f5;vertical-align:middle}
+tr:hover td{background:#fafbfd}
+.pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:10px}
+.p-green{background:var(--jade-bg);color:var(--jade)}.p-gold{background:var(--gold-bg);color:var(--gold)}
+.p-red{background:var(--red-bg);color:var(--red)}.p-blue{background:var(--blue-bg);color:var(--blue)}
+.p-gray{background:#eef0f3;color:var(--dim)}
+.btn{border:1px solid var(--line);background:#fff;border-radius:7px;padding:6px 14px;font-size:12px}
+.btn.pri{background:var(--blue);border-color:var(--blue);color:#fff}
+.btn.gold{background:var(--gold);border-color:var(--gold);color:#fff}
+.btn.mini{padding:3px 9px;font-size:11px}
+input,select,textarea{font-family:inherit;font-size:12px;border:1px solid var(--line);border-radius:7px;padding:7px 10px;background:#fff;color:var(--ink);outline:none}
+input:focus{border-color:var(--blue)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.row3{display:grid;grid-template-columns:2fr 1fr;gap:12px}
+
+/* ── 图表（纯 CSS/SVG）── */
+.bars{display:flex;align-items:flex-end;gap:8px;height:120px;padding-top:6px}
+.bars .b{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end}
+.bars .b i{width:70%;background:linear-gradient(180deg,#6d94e0,#3d6fd6);border-radius:4px 4px 0 0}
+.bars .b span{font-size:9px;color:var(--dim)}
+.spark{stroke:#3d6fd6;fill:none;stroke-width:2}
+.spark2{stroke:#b98e2f;fill:none;stroke-width:2;stroke-dasharray:4 3}
+.funnel{display:flex;flex-direction:column;gap:6px}
+.funnel .f{display:flex;align-items:center;gap:8px;font-size:11px}
+.funnel .f .lab{width:86px;color:var(--dim)}
+.funnel .f .bar{height:20px;border-radius:4px;background:linear-gradient(90deg,#3d6fd6,#6d94e0);
+  display:flex;align-items:center;padding-left:8px;color:#fff;font-size:10px;min-width:34px}
+.funnel .f:nth-child(2) .bar{background:linear-gradient(90deg,#5a83d8,#8aa9e6)}
+.funnel .f:nth-child(3) .bar{background:linear-gradient(90deg,#7d9ce2,#a7bfea)}
+.funnel .f:nth-child(4) .bar{background:linear-gradient(90deg,#a3b9ea,#c6d5f2);color:#33507e}
+.funnel .f:nth-child(5) .bar{background:linear-gradient(90deg,#c8d4ef,#e2e9f7);color:#33507e}
+.legend{display:flex;gap:14px;font-size:10px;color:var(--dim);margin-top:6px}
+.legend i{display:inline-block;width:14px;height:3px;border-radius:2px;margin-right:4px;vertical-align:2px}
+
+/* 主线网格 */
+.slines{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.sline{border:1px solid var(--line);border-radius:9px;padding:10px;background:#fff;cursor:pointer}
+.sline:hover{border-color:var(--gold);box-shadow:0 2px 8px rgba(185,142,47,.15)}
+.sline .n{font-weight:600;font-size:12px}.sline .b{color:var(--dim);font-size:10px;margin-top:2px}
+.mini-stages{display:flex;gap:2px;margin-top:8px}
+.mini-stages i{flex:1;height:3px;border-radius:2px;background:#e5e8ec}
+.mini-stages i.d{background:var(--gold)}.mini-stages i.c{background:var(--gold);opacity:.45}
+
+/* LLM 路由表 / 灰度 */
+.slider{-webkit-appearance:none;width:130px;height:4px;background:#e2e6ec;border-radius:2px}
+.slider::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--gold);cursor:pointer}
+
+/* 客服快照 */
+.snapshot{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;font-size:11px}
+.snapshot div{background:#f7f8fa;border-radius:7px;padding:8px}
+.snapshot b{display:block;font-size:14px;margin-top:2px}
+
+/* 审计 timeline */
+.audit{position:relative;padding-left:18px}
+.audit::before{content:"";position:absolute;left:4px;top:4px;bottom:4px;width:2px;background:#e5e8ec}
+.audit .a{position:relative;padding:4px 0 12px;font-size:12px}
+.audit .a::before{content:"";position:absolute;left:-18px;top:8px;width:8px;height:8px;border-radius:50%;background:var(--blue);border:2px solid #fff}
+
+/* ── 移动端 ── */
+#tabbar{display:none}
+@media (max-width:860px){
+  #app{grid-template-columns:1fr}
+  #side{position:fixed;left:-240px;width:224px;z-index:50;transition:.25s}
+  #side.open{left:0;box-shadow:20px 0 60px rgba(0,0,0,.4)}
+  #burger{display:block}
+  #hd .search{display:none}
+  main{padding:12px 12px 76px}
+  .kpis{grid-template-columns:1fr 1fr}
+  .row2,.row3{grid-template-columns:1fr}
+  .slines{grid-template-columns:1fr 1fr}
+  .snapshot{grid-template-columns:1fr 1fr}
+  /* 表格转卡片 */
+  .resp{display:block}
+  .resp thead{display:none}
+  .resp tr{display:block;background:#fff;border:1px solid var(--line);border-radius:9px;padding:8px 10px;margin-bottom:8px}
+  .resp td{display:flex;justify-content:space-between;border:none;padding:3px 0;font-size:12px}
+  .resp td::before{content:attr(data-l);color:var(--dim)}
+  #tabbar{display:flex;position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);
+    z-index:40;padding:4px 0 calc(4px + env(safe-area-inset-bottom))}
+  #tabbar button{flex:1;border:none;background:none;display:flex;flex-direction:column;align-items:center;gap:2px;
+    font-size:10px;color:var(--dim);padding:6px 0}
+  #tabbar button.on{color:var(--blue)}
+  #tabbar button .ic{font-size:18px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- ═══ 侧导航 ═══ -->
+  <aside id="side">
+    <div class="logo">⚜️ 寻仙·后台<small>玄幻修仙模拟器 · v0.1.0</small></div>
+    <div class="group">运营</div>
+    <button class="nv on" data-s="s0" onclick="go(0,this)">📊 运营看板</button>
+    <button class="nv" data-s="s1" onclick="go(1,this)">👥 玩家与存档</button>
+    <button class="nv" data-s="s2" onclick="go(2,this)">🧾 数值管理</button>
+    <div class="group">内容</div>
+    <button class="nv" data-s="s3" onclick="go(3,this)">📜 主线剧本</button>
+    <button class="nv" data-s="s4" onclick="go(4,this)">🤖 LLM 工厂</button>
+    <button class="nv" data-s="s5" onclick="go(5,this)">🔔 推送中心</button>
+    <div class="group">支持</div>
+    <button class="nv" data-s="s6" onclick="go(6,this)">🎧 客服支持</button>
+    <button class="nv" data-s="s7" onclick="go(7,this)">🛡️ 审计日志<span class="badge">3</span></button>
+    <button class="nv" data-s="s8" onclick="go(8,this)">⚙️ 系统设置</button>
+    <div class="foot">admin@xunxian<br>内网环境 · PostgreSQL 已连接</div>
+  </aside>
+
+  <div id="wrap">
+    <!-- 顶栏 -->
+    <div id="hd">
+      <button id="burger" onclick="document.getElementById('side').classList.toggle('open')">☰</button>
+      <div class="crumb" id="crumb">运营看板 <small>/ 数据总览</small></div>
+      <div class="search">🔍 搜索道果码 / 设备 / 玩家名…</div>
+      <span class="env">● 生产</span>
+      <span class="env gray" style="display:none">● 灰度 10%</span>
+    </div>
+
+    <main>
+    <!-- ① 运营看板 -->
+    <section class="on" id="s0">
+      <h2>运营看板<small>数据截至 2026-08-20 14:00 · 实时+夜间物化</small></h2>
+      <p class="desc">数据驱动运营：漏斗·行为·成本·世界健康度四层指标（docs/09）</p>
+      <div class="grid kpis">
+        <div class="card kpi"><div class="l">今日活跃设备</div><div class="v">128</div><div class="d up">▲ 12% 昨日</div></div>
+        <div class="card kpi"><div class="l">新增仙途</div><div class="v">37</div><div class="d up">▲ 8%</div></div>
+        <div class="card kpi"><div class="l">人均回合/会话</div><div class="v">6.4</div><div class="d">— 持平</div></div>
+        <div class="card kpi"><div class="l">LLM 日成本</div><div class="v">¥86.2</div><div class="d up">▼ 5% 优化</div></div>
+        <div class="card kpi warn"><div class="l">叙事降级率</div><div class="v">1.8%</div><div class="d dn">▲ 阈值 5% 内</div></div>
+      </div>
+      <div class="grid row3" style="margin-top:12px">
+        <div class="card">
+          <div class="h3">留存漏斗 · 仙途进度<span class="more">导出 CSV</span></div>
+          <div class="funnel">
+            <div class="f"><span class="lab">建角完成</span><div class="bar" style="width:100%">100%</div></div>
+            <div class="f"><span class="lab">首回合行动</span><div class="bar" style="width:86%">86%</div></div>
+            <div class="f"><span class="lab">满 1 年（12回合）</span><div class="bar" style="width:54%">54%</div></div>
+            <div class="f"><span class="lab">满 3 年</span><div class="bar" style="width:31%">31%</div></div>
+            <div class="f"><span class="lab">抵达终章</span><div class="bar" style="width:4.2%">4.2%</div></div>
+          </div>
+          <div class="desc" style="margin-top:8px">⚠️ 炼气→筑基渡劫点流失最高（建议审视 20→21 成功率 70% 与惩罚力度）</div>
+        </div>
+        <div class="card">
+          <div class="h3">7 日趋势</div>
+          <svg viewBox="0 0 200 90" style="width:100%">
+            <polyline class="spark" points="0,60 33,52 66,58 100,40 133,44 166,28 200,30"/>
+            <polyline class="spark2" points="0,70 33,66 66,62 100,55 133,52 166,48 200,42"/>
+          </svg>
+          <div class="legend"><span><i style="background:#3d6fd6"></i>DAU</span><span><i style="background:#b98e2f"></i>LLM 成本(¥)</span></div>
+          <div class="h3" style="margin-top:12px">境界分布</div>
+          <div class="bars" style="height:80px">
+            <div class="b"><i style="height:95%"></i><span>凡人</span></div>
+            <div class="b"><i style="height:78%"></i><span>炼气</span></div>
+            <div class="b"><i style="height:40%"></i><span>筑基</span></div>
+            <div class="b"><i style="height:16%"></i><span>金丹</span></div>
+            <div class="b"><i style="height:6%"></i><span>元婴</span></div>
+            <div class="b"><i style="height:2%"></i><span>化神+</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="grid row2" style="margin-top:12px">
+        <div class="card">
+          <div class="h3">经济监控 · 灵石净流入（通胀预警）</div>
+          <svg viewBox="0 0 400 80" style="width:100%">
+            <polyline points="0,50 40,44 80,52 120,38 160,42 200,30 240,36 280,26 320,32 360,22 400,26" fill="none" stroke="#2e9c78" stroke-width="2"/>
+            <line x1="0" y1="58" x2="400" y2="58" stroke="#cc4433" stroke-dasharray="4 4" stroke-width="1"/>
+          </svg>
+          <div class="desc">产出持续高于消耗（虚线为健康线）· 建议上调秘境门票/洞府租金</div>
+        </div>
+        <div class="card">
+          <div class="h3">世界健康度</div>
+          <table>
+            <tr><td>NPC 池命中率（复用/生成）</td><td><b>83%</b> <span class="pill p-green">健康</span></td></tr>
+            <tr><td>事件链完成率（坠魔谷）</td><td><b>61%</b> <span class="pill p-gold">观察</span></td></tr>
+            <tr><td>天机简报回应率</td><td><b>34%</b> <span class="pill p-gray">偏低</span></td></tr>
+            <tr><td>自由输入占比</td><td><b>27%</b> <span class="pill p-green">↑ 活跃</span></td></tr>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ② 玩家与存档 -->
+    <section id="s1">
+      <h2>玩家与存档<small>跨设备检索 · 只读快照（客服不可改档）</small></h2>
+      <p class="desc">支持道果码 / 设备ID / 角色名检索；行内操作：快照 · 回放 · 标记</p>
+      <div class="card" style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap">
+        <input placeholder="道果码 如 7K2M-9QXH" style="width:180px">
+        <input placeholder="角色名" style="width:120px">
+        <select><option>全部状态</option><option>进行中</option><option>已终章</option><option>转世</option></select>
+        <button class="btn pri">检索</button>
+        <span class="pill p-blue" style="align-self:center">共 412 条</span>
+      </div>
+      <div class="card" style="overflow-x:auto">
+        <table class="resp">
+          <thead><tr><th>槽</th><th>角色</th><th>天命主线</th><th>境界</th><th>回合</th><th>状态</th><th>最后活跃</th><th>操作</th></tr></thead>
+          <tbody>
+            <tr><td data-l="槽">1</td><td data-l="角色"><b>林寻</b> · 人族</td><td data-l="主线">圣体之路 · 阶段3</td><td data-l="境界">筑基 Lv.28</td><td data-l="回合">t=214</td><td data-l="状态"><span class="pill p-green">进行中</span></td><td data-l="活跃">3 分钟前</td><td data-l="操作"><button class="btn mini">快照</button> <button class="btn mini">回放</button></td></tr>
+            <tr><td data-l="槽">2</td><td data-l="角色"><b>云隐</b> · 灵族</td><td data-l="主线">财可通神 · 阶段5</td><td data-l="境界">金丹 Lv.47</td><td data-l="回合">t=583</td><td data-l="状态"><span class="pill p-green">进行中</span></td><td data-l="活跃">1 小时前</td><td data-l="操作"><button class="btn mini">快照</button> <button class="btn mini">回放</button></td></tr>
+            <tr><td data-l="槽">3</td><td data-l="角色"><b>青梧</b>（二代）</td><td data-l="主线">血脉复兴 · 阶段2</td><td data-l="境界">炼气 Lv.16</td><td data-l="回合">t=96</td><td data-l="状态"><span class="pill p-gold">传承续玩</span></td><td data-l="活跃">昨天</td><td data-l="操作"><button class="btn mini">快照</button> <button class="btn mini">回放</button></td></tr>
+            <tr><td data-l="槽">1</td><td data-l="角色"><b>问道者</b></td><td data-l="主线">再证大道 · 已终章</td><td data-l="境界">渡劫 Lv.96</td><td data-l="回合">t=1204</td><td data-l="状态"><span class="pill p-gray">已终章·万古道主</span></td><td data-l="活跃">3 天前</td><td data-l="操作"><button class="btn mini">回顾</button></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ③ 数值管理 -->
+    <section id="s2">
+      <h2>数值管理<small>ref 表 CRUD · 草稿-发布流 · 影响预览</small></h2>
+      <p class="desc">数值热更：发布前 diff 预览 + 抽样存档离线重放，进行中存档锁定旧版本快照</p>
+      <div class="card" style="margin-bottom:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <select><option>ref_items 物品</option><option>ref_techniques 功法</option><option>ref_realms 境界</option><option>ref_punishments 惩罚表</option></select>
+        <input placeholder="筛选 key/名称…" style="width:160px">
+        <button class="btn pri">+ 新增物品</button>
+        <span style="margin-left:auto" class="pill p-gold">草稿 2 项待发布</span>
+        <button class="btn gold">影响预览</button>
+        <button class="btn">发布</button>
+      </div>
+      <div class="card" style="overflow-x:auto">
+        <table class="resp">
+          <thead><tr><th>key</th><th>名称</th><th>类目</th><th>价格</th><th>品级</th><th>版本</th><th>状态</th><th>操作</th></tr></thead>
+          <tbody>
+            <tr><td data-l="key">juqi_dan</td><td data-l="名称">聚气丹</td><td data-l="类目">丹药</td><td data-l="价格"><input value="20" style="width:64px"></td><td data-l="品级">1</td><td data-l="版本">v3</td><td data-l="状态"><span class="pill p-green">启用</span></td><td data-l="操作"><button class="btn mini">存草稿</button></td></tr>
+            <tr><td data-l="key">zhuji_dan</td><td data-l="名称">筑基丹</td><td data-l="类目">丹药</td><td data-l="价格"><input value="8000" style="width:70px"></td><td data-l="品级">4</td><td data-l="版本">v2</td><td data-l="状态"><span class="pill p-green">启用</span></td><td data-l="操作"><button class="btn mini">存草稿</button></td></tr>
+            <tr><td data-l="key">huoyun_dao</td><td data-l="名称">火纹法刀</td><td data-l="类目">法器</td><td data-l="价格"><input value="900" style="width:64px"></td><td data-l="品级">3</td><td data-l="版本">v1</td><td data-l="状态"><span class="pill p-gray">已下架</span></td><td data-l="操作"><button class="btn mini">上架</button></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card" style="margin-top:12px">
+        <div class="h3">影响预览（发布前）</div>
+        <table>
+          <tr><td>改动项</td><td><b>筑基丹 8000 → 6500</b></td></tr>
+          <tr><td>影响范围</td><td>坊市正市货架 · 主线「丹道至尊」阶段3 奖励等值物</td></tr>
+          <tr><td>离线重放</td><td>抽样 20 存档 × 50 回合：<span class="pill p-green">数值漂移 &lt; 3%</span></td></tr>
+          <tr><td>生效策略</td><td>新存档即时生效 · 进行中存档下月货架切换（版本快照隔离）</td></tr>
+        </table>
+      </div>
+    </section>
+
+    <!-- ④ 主线剧本 -->
+    <section id="s3">
+      <h2>主线剧本<small>10 条天命 × 6 阶段 · 节点图编辑</small></h2>
+      <p class="desc">结构化剧本（docs/06 Schema）：阶段进度/平衡红线（同阶段奖励偏差 ≤15%）/节点可达性校验</p>
+      <div class="slines">
+        <div class="sline" onclick="alert('进入「圣体之路」节点图编辑器（demo）')"><div class="n">① 圣体之路</div><div class="b">绑定·天生道体 · 37 人游玩</div><div class="mini-stages"><i class="d"></i><i class="d"></i><i class="c"></i><i></i><i></i><i></i></div></div>
+        <div class="sline"><div class="n">② 财可通神</div><div class="b">绑定·坊市学徒 · 52 人</div><div class="mini-stages"><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="c"></i><i></i></div></div>
+        <div class="sline"><div class="n">③ 血脉复兴</div><div class="b">绑定·没落血脉 · 29 人</div><div class="mini-stages"><i class="d"></i><i class="c"></i><i></i><i></i><i></i><i></i></div></div>
+        <div class="sline"><div class="n">④ 逆境求生</div><div class="b">绑定·遗孤散修 · 44 人</div><div class="mini-stages"><i class="d"></i><i class="d"></i><i class="c"></i><i></i><i></i><i></i></div></div>
+        <div class="sline"><div class="n">⑤ 再证大道</div><div class="b">绑定·转世大能 · 31 人</div><div class="mini-stages"><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i></div></div>
+        <div class="sline"><div class="n">⑥ 红尘问道</div><div class="b">绑定·佛道童子 · 18 人</div><div class="mini-stages"><i class="d"></i><i class="c"></i><i></i><i></i><i></i><i></i></div></div>
+        <div class="sline"><div class="n">⑦ 丹道至尊</div><div class="b">绑定·炼丹世家 · 40 人</div><div class="mini-stages"><i class="d"></i><i class="d"></i><i class="c"></i><i></i><i></i><i></i></div></div>
+        <div class="sline"><div class="n">⑧ 宗门逆袭</div><div class="b">绑定·宗门杂役 · 48 人</div><div class="mini-stages"><i class="d"></i><i class="d"></i><i class="c"></i><i></i><i></i><i></i></div></div>
+        <div class="sline"><div class="n">⑨ 百兵之祖</div><div class="b">绑定·铸剑山庄 · 22 人</div><div class="mini-stages"><i class="d"></i><i class="c"></i><i></i><i></i><i></i><i></i></div></div>
+        <div class="sline"><div class="n">⑩ 我命由我</div><div class="b">绑定·大器晚成 · 61 人 ⭐</div><div class="mini-stages"><i class="d"></i><i class="d"></i><i class="c"></i><i></i><i></i><i></i></div></div>
+      </div>
+      <div class="card" style="margin-top:12px">
+        <div class="h3">「圣体之路」阶段2 · 星辰初淬 · 节点图<span class="more">校验报告：✅ 无死端 / ✅ 奖励平衡 8.2%</span></div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:11px">
+          <span class="pill p-gold">entry 天命之召</span>→
+          <span class="pill p-blue">choice×3 互斥</span>→
+          <span class="pill p-blue">judgment 天人感应</span>→
+          <span class="pill p-green">reward 灵石护盾</span>→
+          <span class="pill">expiry 3月·静待来年</span>
+          <button class="btn mini" style="margin-left:auto">+ 添加节点</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ⑤ LLM 工厂 -->
+    <section id="s4">
+      <h2>LLM 工厂<small>供应商路由 · Prompt 版本 · 灰度发布</small></h2>
+      <div class="grid row2">
+        <div class="card">
+          <div class="h3">供应商</div>
+          <table>
+            <tr><td><b>智谱 GLM-5.2</b><br><span style="color:var(--dim);font-size:10px">open.bigmodel.cn · thinking:disabled</span></td><td><span class="pill p-green">默认 · 100%</span></td><td>P95 3.2s</td></tr>
+            <tr><td>GLM-5.2-Air<br><span style="color:var(--dim);font-size:10px">轻量 · 意图解析</span></td><td><span class="pill p-blue">场景路由</span></td><td>P95 0.9s</td></tr>
+            <tr><td>DeepSeek-V4<br><span style="color:var(--dim);font-size:10px">备用</span></td><td><span class="pill p-gray">停用</span></td><td>—</td></tr>
+          </table>
+        </div>
+        <div class="card">
+          <div class="h3">场景路由</div>
+          <table>
+            <tr><td>主叙事</td><td>GLM-5.2</td><td>¥0.062/千次回合</td></tr>
+            <tr><td>意图解析</td><td>GLM-5.2-Air</td><td>¥0.004/次</td></tr>
+            <tr><td>简报润色</td><td>GLM-5.2</td><td>合并主叙事调用</td></tr>
+            <tr><td>终章回顾</td><td>GLM-5.2</td><td>单次 900tok</td></tr>
+          </table>
+          <div style="margin-top:10px;font-size:11px;color:var(--dim)">今日成本 <b style="color:var(--gold);font-size:16px">¥86.2</b> · 1,392 次调用</div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:12px">
+        <div class="h3">Prompt 版本 · 主叙事<span class="more">查看 diff</span></div>
+        <table>
+          <tr><td><b>v7</b> 当前</td><td style="color:var(--dim)">+分层记忆相关性打分 · 降级率 1.8%↓</td><td>灰度 100%</td><td><input type="range" class="slider" value="100" disabled></td></tr>
+          <tr><td><b>v8</b> 草稿</td><td style="color:var(--dim)">+场景氛围词表（秘境/渡劫差异化）</td><td><span class="pill p-gold">AB 实验</span></td><td><input type="range" class="slider" value="10"></td></tr>
+        </table>
+      </div>
+    </section>
+
+    <!-- ⑥ 推送中心 -->
+    <section id="s5">
+      <h2>推送中心<small>Web Push · VAPID 已配置</small></h2>
+      <div class="grid row2">
+        <div class="card">
+          <div class="h3">广播编辑器</div>
+          <input value="🌌 天命之召" style="width:100%;margin-bottom:8px">
+          <textarea rows="3" style="width:100%">新的一年已至，你的天命在等待抉择。错过需再等一年。</textarea>
+          <div style="display:flex;gap:8px;margin-top:10px;align-items:center">
+            <select><option>全部分户（312）</option><option>活跃7天（128）</option><option>卡在渡劫点（41）</option></select>
+            <button class="btn pri">立即广播</button>
+            <button class="btn">定时</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="h3">自动提醒策略</div>
+          <table>
+            <tr><td>天命之召月（1月）</td><td><span class="pill p-green">开启</span></td></tr>
+            <tr><td>因缘保鲜期将过（剩1月）</td><td><span class="pill p-green">开启</span></td></tr>
+            <tr><td>寿元 &lt; 10 年未传承</td><td><span class="pill p-gold">仅一次</span></td></tr>
+            <tr><td>版本更新公告</td><td><span class="pill p-gray">关闭</span></td></tr>
+          </table>
+          <div class="desc" style="margin-top:8px">订阅数 312 · 今日已发送 128 · 失败清理 2</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ⑦ 客服支持 -->
+    <section id="s6">
+      <h2>客服支持<small>道果码定位 · 只读快照 · 回合回放</small></h2>
+      <div class="card" style="display:flex;gap:8px;margin-bottom:12px">
+        <input placeholder="输入道果码，如 7K2M-9QXH" style="width:200px">
+        <button class="btn pri">定位仙途</button>
+        <span class="pill p-red" style="align-self:center">客服不可改档 · 修复走补偿码流程</span>
+      </div>
+      <div class="card">
+        <div class="h3">存档快照 · 林寻（t=214）</div>
+        <div class="snapshot">
+          <div>境界<b>筑基 Lv.28</b></div><div>天命<b>圣体之路 3/6</b></div>
+          <div>灵石<b>12,430</b></div><div>道缘<b>道友×3</b></div>
+          <div>寿元<b>212 年</b></div><div>百艺<b>炼丹 Lv.24</b></div>
+          <div>所在<b>中州·太虚宗</b></div><div>最近行动<b>秘境·坠魔谷</b></div>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:8px;align-items:center">
+          <span style="font-size:12px;color:var(--dim)">回合回放：</span>
+          <input value="212" style="width:70px"><button class="btn">重放对比</button>
+          <span class="pill p-green">✅ 引擎 delta 与落库一致</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ⑧ 审计日志 -->
+    <section id="s7">
+      <h2>审计日志<small>全部后台变更留痕</small></h2>
+      <div class="card"><div class="audit">
+        <div class="a"><b>14:02</b> · admin 发布 ref_items 草稿（筑基丹 8000→6500，v3）</div>
+        <div class="a"><b>13:47</b> · admin 修改场景路由：意图解析 → GLM-5.2-Air</div>
+        <div class="a"><b>11:20</b> · admin 广播推送「天命之召」至 128 设备</div>
+        <div class="a"><b>09:15</b> · system 夜间物化视图刷新成功（耗时 6.2s）</div>
+        <div class="a"><b>昨日 22:41</b> · admin 登录（内网 192.168.1.10）</div>
+      </div></div>
+    </section>
+
+    <!-- ⑨ 系统设置 -->
+    <section id="s8">
+      <h2>系统设置</h2>
+      <div class="grid row2">
+        <div class="card"><div class="h3">基础设施</div>
+          <table>
+            <tr><td>PostgreSQL</td><td><span class="pill p-green">100.66.1.2/xunxian · 已连接</span></td></tr>
+            <tr><td>每日备份</td><td><span class="pill p-green">PITR 开启</span> 上次恢复演练：7 天前</td></tr>
+            <tr><td>VAPID 推送</td><td><span class="pill p-green">已配置</span></td></tr>
+            <tr><td>部署</td><td>内网自托管 · Vercel 配置就绪（vercel.json）</td></tr>
+          </table>
+        </div>
+        <div class="card"><div class="h3">安全</div>
+          <table>
+            <tr><td>管理员密码</td><td><button class="btn mini">轮换 ADMIN_PASSWORD</button></td></tr>
+            <tr><td>API 限流</td><td>回合 30/min · 自由输入 20/min · 道果码恢复 5/h</td></tr>
+            <tr><td>防 SL</td><td><span class="pill p-green">开启</span> 回合只追加，无回滚路径</td></tr>
+          </table>
+        </div>
+      </div>
+    </section>
+    </main>
+  </div>
+</div>
+
+<!-- 移动端底部 Tab -->
+<nav id="tabbar">
+  <button class="on" onclick="go(0,this)"><span class="ic">📊</span>看板</button>
+  <button onclick="go(1,this)"><span class="ic">👥</span>玩家</button>
+  <button onclick="go(2,this)"><span class="ic">🧾</span>数值</button>
+  <button onclick="go(4,this)"><span class="ic">🤖</span>LLM</button>
+  <button onclick="document.getElementById('side').classList.add('open')"><span class="ic">☰</span>更多</button>
+</nav>
+
+<script>
+const crumbs=["运营看板 / 数据总览","运营看板 / 玩家与存档","运营 / 数值管理","内容 / 主线剧本","内容 / LLM 工厂","内容 / 推送中心","支持 / 客服","支持 / 审计日志","支持 / 系统设置"];
+function go(i,btn){
+  document.querySelectorAll('section').forEach((s,k)=>s.classList.toggle('on',k===i));
+  document.getElementById('crumb').innerHTML=crumbs[i].replace(' / ',' <small>/</small> ');
+  document.querySelectorAll('#side .nv').forEach(b=>b.classList.toggle('on',b.dataset.s==='s'+i));
+  document.querySelectorAll('#tabbar button').forEach((b,k)=>b.classList.toggle('on',k===Math.min(i,4)));
+  document.getElementById('side').classList.remove('open');
+  window.scrollTo(0,0);
+}
+/* 点击遮罩关闭移动抽屉 */
+document.addEventListener('click',e=>{
+  const side=document.getElementById('side');
+  if(side.classList.contains('open') && !side.contains(e.target) && !e.target.closest('#burger')) side.classList.remove('open');
+});
+</script>
+</body>
+</html>
