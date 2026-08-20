@@ -14,6 +14,13 @@ export interface CreateCharacterInput {
   archiveId: string;
 }
 
+// 开局包 → 主修百艺映射（十章）
+const PACK_ARTS: Record<string, string> = {
+  danjia: "炼丹", zhujian: "炼器", tongzi: "制符", fangshi: "灵植",
+  yigu: "驯兽", daoti: "炼体", zayong: "杂役", xuemail: "炼丹",
+  zhuanshi: "炼丹", daqicheng: "炼丹",
+};
+
 /** 灵根随机生成（二章一.4：创建时随机；开局包保底待剧本层接入） */
 export function rollSpiritRoot(rng: Rng): SpiritRoot {
   const roll = rng.next();
@@ -90,6 +97,12 @@ export function createCharacter(input: CreateCharacterInput, rng: Rng): {
       momentum: 0,
     },
     currencies: { low: pack.initialCurrencies.low, mid: 0, high: 0, supreme: 0, crystal: 0 },
+    arts: {
+      main: PACK_ARTS[pack.key] ?? "炼丹",
+      level: pack.key === "danjia" || pack.key === "zhujian" ? 5 : 1, // 世家出身有底子
+      exp: 0,
+      subs: [],
+    },
     location: { domain: input.domain, region: null, place: null },
   };
   return { state, pack, spiritRoot };

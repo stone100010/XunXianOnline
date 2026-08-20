@@ -75,6 +75,12 @@ export const PlayerStateSchema = z.object({
   spiritRoot: SpiritRootSchema,
   combat: CombatStateSchema,
   currencies: CurrenciesSchema,
+  arts: z.object({
+    main: z.string(),            // 主修技艺（炼丹/炼器/制符/阵法/灵植/驯兽）
+    level: z.number().int().min(1).max(100),
+    exp: z.number().int().min(0),
+    subs: z.array(z.string()).max(2), // 辅修（50% 经验收入）
+  }),
   location: z.object({
     domain: z.string(),
     region: z.string().nullable(),

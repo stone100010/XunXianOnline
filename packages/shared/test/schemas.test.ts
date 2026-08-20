@@ -22,6 +22,7 @@ const validState = {
   spiritRoot: { elements: ["fire"], grade: "zhong", purity: 0.4, speedModifier: 0 },
   combat: { mainEquipmentLevel: 0, mainTechniqueLevel: 1, concealment: 0, momentum: 0 },
   currencies: { low: 10, mid: 0, high: 0, supreme: 0, crystal: 0 },
+  arts: { main: "炼丹", level: 1, exp: 0, subs: [] },
   location: { domain: "zhongzhou", region: null, place: null },
 };
 

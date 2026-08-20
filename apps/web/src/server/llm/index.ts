@@ -73,6 +73,7 @@ export interface NarrativeInput {
   relation?: { npcName: string; intimacy: number; tier: number };
   destiny?: { storyline: string; stage: number; stageName: string; optionLabel: string; rewardNote: string; nextPhase: string };
   realm?: { 名称: string; 游历步骤: string[]; 收获: { 修为: number; 灵石: number; 物品: string[]; 传承: string[] } };
+  art?: { 技艺: string; 经验增长: number; 升级层数: number; 售卖收入: number };
   currencyDelta?: Partial<Record<string, number>>;
   nextMonth: number;
 }
@@ -133,6 +134,10 @@ function buildFacts(input: NarrativeInput) {
       对象: input.relation.npcName,
       亲密度变化: input.relation.intimacy > 0 ? `+${input.relation.intimacy}` : String(input.relation.intimacy),
       关系层级: ["陌路", "一面之缘", "熟识", "道友", "心腹/道侣"][input.relation.tier],
+    } : null,
+    百艺经营: input.art ? {
+      技艺: input.art.技艺, 经验增长: input.art.经验增长,
+      升级层数: input.art.升级层数, 售卖收入: input.art.售卖收入,
     } : null,
     秘境游历: input.realm ? {
       名称: input.realm.名称,

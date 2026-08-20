@@ -28,6 +28,7 @@ interface ActionOutcome {
   levelsGained: number;
   combatResult?: ReturnType<typeof resolveCombat>;
   realmResult?: RealmResult;
+  artDelta?: { art: string; level: number; expGain: number; levelsGained: number; income: number; expAfter: number };
   narrativeInput: { actionLabel: string };
 }
 
@@ -63,12 +64,26 @@ function settleAction(state: PlayerState, option: CompassOption, rng: ReturnType
     }, rng);
   }
 
+  // 修仙百艺（十章）：技艺经验 + 收入（等级×系数+产出波动）
+  let artDelta: ActionOutcome["artDelta"] | undefined;
+  if (kind === "baiyi" && state.arts) {
+    const expGain = Math.max(2, Math.round(state.arts.level * 1.5 + rng.int(0, 10)));
+    const income = Math.max(1, Math.round(state.arts.level * rng.int(3, 8) * (1 + rng.next())));
+    let { level, exp } = state.arts;
+    exp += expGain;
+    let artLevels = 0;
+    let expAfter = exp;
+    while (level < 100 && expAfter >= level * 20) { expAfter -= level * 20; level += 1; artLevels += 1; }
+    artDelta = { art: state.arts.main, level, expGain, levelsGained: artLevels, income, expAfter };
+  }
+
   return {
     actionKind: kind,
     cultivationGain: gain,
     levelsGained: r.levelsGained,
     combatResult,
     realmResult,
+    artDelta,
     narrativeInput: { actionLabel: option.label },
   };
 }
@@ -204,6 +219,7 @@ export interface SettlementView {
     combat?: unknown;
     relation?: { npcName: string; intimacy: number; tier: number };
     destiny?: { storyline: string; stage: number; stageName: string; optionLabel: string; rewardNote: string; nextPhase: string };
+    art?: { art: string; expGain: number; levelsGained: number; income: number; expAfter: number };
     realm?: { realmName: string; steps: { node: string; option: string; passed: boolean }[]; expGain: number; currencyGain: number; items: string[]; unlocks: string[] };
   };
   state: PlayerState;
@@ -314,6 +330,12 @@ export async function submitAction(
       : state.currencies,
   };
 
+  // 百艺收益落地（技艺经验/升级 + 灵石收入）
+  if (outcome.artDelta && state.arts) {
+    updated.arts = { ...state.arts, level: outcome.artDelta.level, exp: outcome.artDelta.expAfter };
+    updated.currencies = { ...updated.currencies, low: (updated.currencies.low ?? 0) + outcome.artDelta.income };
+  }
+
   // 秘境收益落地（修为补加 + 灵石 + 物品入包；解锁记入史册 delta）
   let finalState = updated;
   if (outcome.realmResult) {
@@ -337,6 +359,12 @@ export async function submitAction(
     combat: outcome.combatResult,
     relation: relationDelta,
     destiny: destinyDelta,
+    art: outcome.artDelta ? {
+      技艺: outcome.artDelta.art,
+      经验增长: outcome.artDelta.expGain,
+      升级层数: outcome.artDelta.levelsGained,
+      售卖收入: outcome.artDelta.income,
+    } : undefined,
     realm: outcome.realmResult ? {
       名称: outcome.realmResult.realmName,
       游历步骤: outcome.realmResult.steps.map((st) => `${st.option}${st.passed ? "（成功）" : "（受挫止步）"}`),
@@ -364,6 +392,7 @@ export async function submitAction(
       combat: outcome.combatResult,
       relation: relationDelta,
       destiny: destinyDelta,
+      art: outcome.artDelta,
       realm: outcome.realmResult,
     },
     state: finalState,
