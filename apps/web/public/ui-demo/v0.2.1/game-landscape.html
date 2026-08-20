@@ -487,9 +487,11 @@ input{font-family:inherit}
 <script>
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 let wallet=1240;
-/* ── 路由（文档流切换 + 回顶按钮显隐）── */
-function nav(id){$('#'+id).classList.add('on');window.scrollTo(0,0)}
-function back(){$$('.page.on').forEach(p=>{if(p.id!=='pHome')p.classList.remove('on')});window.scrollTo(0,0)}
+/* ── 路由（互斥切换：同一时刻只显示一页）── */
+function nav(id){$$('.page').forEach(p=>p.classList.remove('on'));$('#'+id).classList.add('on');window.scrollTo(0,0)}
+function back(){$$('.page').forEach(p=>p.classList.remove('on'));$('#pHome').classList.add('on');window.scrollTo(0,0)}
+/* 首访操作提示（6 秒后消失，或首次点击任意导航即消失） */
+setTimeout(()=>toast('💡 点击左下角「百艺」区图标，进入 坊市/背包/道缘/灵图/灵兽/传承 六大页面'),800);
 window.addEventListener('scroll',()=>{
   const t=$('#toTop');const show=window.scrollY>120;
   t.style.opacity=show?1:0;t.style.pointerEvents=show?'auto':'none';
