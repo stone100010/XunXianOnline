@@ -1,0 +1,17 @@
+{
+  "name": "xunxian-online",
+  "version": "0.1.0",
+  "private": true,
+  "description": "玄幻修仙模拟器 · 单人月令回合制开放世界修仙模拟器（Next.js 全栈）",
+  "packageManager": "pnpm@11.22.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @xunxian/web dev",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck"
+  }
+}
