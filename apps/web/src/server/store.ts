@@ -58,6 +58,15 @@ export interface GameStore {
   getDestiny(archiveId: string): Promise<DestinyProgress | null>;
   saveDestiny(archiveId: string, destiny: DestinyProgress): Promise<void>;
   updateArchiveStatus(archiveId: string, status: string): Promise<void>;
+  getKarmaEvents(archiveId: string): Promise<StoredKarmaEvent[]>;
+  saveKarmaEvents(archiveId: string, events: StoredKarmaEvent[]): Promise<void>;
+}
+
+export interface StoredKarmaEvent {
+  kind: string;
+  name: string;
+  options: string[];
+  consumed: boolean;
 }
 
 export interface DestinyProgress {
@@ -78,6 +87,7 @@ class MemoryStore implements GameStore {
   private npcs = new Map<string, NpcProfile[]>();
   private relations = new Map<string, StoredRelation[]>();
   private destiny = new Map<string, DestinyProgress>();
+  private karma = new Map<string, StoredKarmaEvent[]>();
 
   async createArchive(meta: ArchiveMeta, state: PlayerState) {
     this.archives.set(meta.id, meta);
@@ -159,6 +169,12 @@ class MemoryStore implements GameStore {
   async updateArchiveStatus(archiveId: string, status: string) {
     const a = this.archives.get(archiveId);
     if (a) this.archives.set(archiveId, { ...a, status });
+  }
+  async getKarmaEvents(archiveId: string) {
+    return this.karma.get(archiveId) ?? [];
+  }
+  async saveKarmaEvents(archiveId: string, events: StoredKarmaEvent[]) {
+    this.karma.set(archiveId, events);
   }
 }
 

@@ -3,17 +3,51 @@
 import {
   addCultivationExp, applyInteraction, buildBriefing, canEnter, createRng, evolveWorld,
   expToNextLevel, generateCompass, hashSeed, parseIntent, realmOfLevel, resolveCombat,
-  rollDomainSeeds, SECRET_REALM_TEMPLATES, truePower,
+  rollDomainSeeds, sampleKarmaEvents, SECRET_REALM_TEMPLATES, truePower,
 } from "@xunxian/engine";
 import type { CompassOption, Rng } from "@xunxian/engine";
 import type { PlayerState } from "@xunxian/shared";
 import { store } from "../store.js";
-import type { StoredRelation } from "../store.js";
+import type { StoredKarmaEvent, StoredRelation } from "../store.js";
 import { stageScript } from "@xunxian/content";
 import { buildProviderFromEnv, NarrativeService } from "../llm/index.js";
 import { ServiceError } from "./archiveService.js";
 
 const narrative = new NarrativeService(buildProviderFromEnv());
+
+// 因缘际会方向效果表（七章 v1：各事件方向的收益，方向按权重自动抉择）
+const KARMA_RESOLUTIONS: Record<string, { direction: string; weight: number; exp?: number; currency?: number; item?: string; note: string }[]> = {
+  zongmenDabi: [
+    { direction: "参赛", weight: 3, exp: 100, currency: 200, note: "大比夺名，扬宗门之声" },
+    { direction: "观战", weight: 2, exp: 30, note: "观摩同辈斗法，偶有所得" },
+    { direction: "无视", weight: 1, note: "闭门谢客，不问外事" },
+  ],
+  mijingChushi: [
+    { direction: "抢先进入", weight: 2, exp: 150, item: "mijing_relic", note: "抢得先机，携宝而归" },
+    { direction: "组队探索", weight: 3, exp: 80, note: "结伴而行，共担风险" },
+    { direction: "外围捡漏", weight: 2, currency: 150, note: "于外围拾得遗落灵物" },
+  ],
+  shouchao: [
+    { direction: "参与救援", weight: 3, exp: 80, note: "仗义出手，道心通明" },
+    { direction: "趁机牟利", weight: 1, currency: 300, note: "乱中取利，灵石入袋" },
+    { direction: "撤离避险", weight: 2, note: "避其锋芒，保全己身" },
+  ],
+  kuayuChongtu: [
+    { direction: "参战（选边）", weight: 2, exp: 120, note: "投身战阵，血火淬炼" },
+    { direction: "调停", weight: 1, exp: 50, note: "斡旋两道，口舌生莲" },
+    { direction: "发战争财", weight: 2, currency: 400, note: "低买高卖，财源滚滚" },
+  ],
+  yiwenFajiao: [
+    { direction: "前往祝贺", weight: 2, exp: 20, note: "锦上添花，结一份善缘" },
+    { direction: "趁虚而入", weight: 1, currency: 200, note: "趁其闭关，暗取机缘" },
+    { direction: "无视", weight: 2, note: "名利于我如浮云" },
+  ],
+  paimai: [
+    { direction: "竞拍", weight: 2, currency: -200, item: "auction_treasure", note: "一掷千金，拍得珍品" },
+    { direction: "出售珍品", weight: 2, currency: 300, note: "高价出手，落袋为安" },
+    { direction: "结识大人物", weight: 3, note: "于席间结识一方大能" },
+  ],
+};
 
 // 秘境物品显示名（ref_items 表的代码级映射，入库后由后台接管）
 const SECRET_ITEM_NAMES: Record<string, string> = {
@@ -137,7 +171,7 @@ async function compassCtxFor(archiveId: string, state: PlayerState) {
   const ctx = {
     gameMonth: state.gameMonth,
     destinyOptions: [] as { label: string; riskFlag?: boolean; destinyFlag?: boolean }[],
-    karmaOptions: [] as { label: string }[],
+    karmaOptions: [] as { label: string; payload?: Record<string, unknown> }[],
     exploreOptions: [] as { label: string; payload?: Record<string, unknown> }[],
     socialOptions: [] as { label: string }[],
     artOptions: [] as { label: string }[],
@@ -152,6 +186,16 @@ async function compassCtxFor(archiveId: string, state: PlayerState) {
         riskFlag: o.riskFlag,
         destinyFlag: true,
       }));
+    }
+  }
+  // 因缘际会（七章）：6-7 月注入本年度事件清单（未消费项）
+  if (state.gameMonth >= 6 && state.gameMonth <= 7) {
+    const karmaEvents = await store.getKarmaEvents(archiveId);
+    for (const ev of karmaEvents.filter((e) => !e.consumed)) {
+      ctx.karmaOptions.push({
+        label: `【因缘·${ev.name}】（${ev.options.join(" / ")}）`,
+        payload: { type: "karma", kind: ev.kind },
+      });
     }
   }
   // 历练探索：可进入的秘境（docs/06 内置模板；同月确定性出现）
@@ -220,6 +264,7 @@ export interface SettlementView {
     relation?: { npcName: string; intimacy: number; tier: number };
     destiny?: { storyline: string; stage: number; stageName: string; optionLabel: string; rewardNote: string; nextPhase: string };
     art?: { art: string; expGain: number; levelsGained: number; income: number; expAfter: number };
+    karma?: { eventName: string; direction: string; note: string; exp: number; currency: number; item?: string };
     realm?: { realmName: string; steps: { node: string; option: string; passed: boolean }[]; expGain: number; currencyGain: number; items: string[]; unlocks: string[] };
   };
   state: PlayerState;
@@ -322,6 +367,24 @@ export async function submitAction(
     }
   }
 
+  // 因缘际会结算（七章）：事件方向抉择 + 收益 + 标记已消费
+  let karmaDelta: { eventName: string; direction: string; note: string; exp: number; currency: number; item?: string } | undefined;
+  if (option.payload?.type === "karma" && typeof option.payload.kind === "string") {
+    const events = await store.getKarmaEvents(archiveId);
+    const ev = events.find((e) => e.kind === option.payload!.kind && !e.consumed);
+    if (ev) {
+      const table = KARMA_RESOLUTIONS[ev.kind];
+      if (table) {
+        const res = rng.weighted(table.map((r) => [r, r.weight] as [typeof r, number]));
+        karmaDelta = { eventName: ev.name, direction: res.direction, note: res.note, exp: res.exp ?? 0, currency: res.currency ?? 0, item: res.item };
+        nextCultivation = addCultivationExp(nextCultivation, res.exp ?? 0).state;
+        currencyReward += Math.max(0, res.currency ?? 0);
+        if (res.item) await store.addItem(archiveId, { key: res.item, name: SECRET_ITEM_NAMES[res.item] ?? res.item, category: "special", qty: 1 }, state.turnNo);
+        await store.saveKarmaEvents(archiveId, events.map((e) => (e === ev ? { ...e, consumed: true } : e)));
+      }
+    }
+  }
+
   const updated: PlayerState = {
     ...state,
     cultivation: nextCultivation,
@@ -359,6 +422,12 @@ export async function submitAction(
     combat: outcome.combatResult,
     relation: relationDelta,
     destiny: destinyDelta,
+    karma: karmaDelta ? {
+      事件: karmaDelta.eventName,
+      抉择方向: karmaDelta.direction,
+      结果注记: karmaDelta.note,
+      收益: { 修为: karmaDelta.exp, 灵石: karmaDelta.currency, 物品: karmaDelta.item },
+    } : undefined,
     art: outcome.artDelta ? {
       技艺: outcome.artDelta.art,
       经验增长: outcome.artDelta.expGain,
@@ -377,7 +446,7 @@ export async function submitAction(
   await store.appendTurnRecord({
     archiveId, turnNo, seed: monthSeed(archiveId, turnNo),
     actionKind: outcome.actionKind, actionInput: { option: option.idx, label: option.label },
-    engineDelta: { cultivationGain: outcome.cultivationGain, levelsGained: outcome.levelsGained, relation: relationDelta, destiny: destinyDelta, realm: outcome.realmResult },
+    engineDelta: { cultivationGain: outcome.cultivationGain, levelsGained: outcome.levelsGained, relation: relationDelta, destiny: destinyDelta, karma: karmaDelta, realm: outcome.realmResult },
     narrative: nar.narrative, modelMeta: nar.modelMeta,
   });
 
@@ -393,6 +462,7 @@ export async function submitAction(
       relation: relationDelta,
       destiny: destinyDelta,
       art: outcome.artDelta,
+      karma: karmaDelta,
       realm: outcome.realmResult,
     },
     state: finalState,
@@ -421,6 +491,17 @@ export async function nextMonth(archiveId: string, deviceId: string, turnNo: num
 
   const updated: PlayerState = { ...state, turnNo: state.turnNo + 1, gameYear, gameMonth, age, cultivation: { ...state.cultivation, lifespanYears } };
   await store.savePlayerState(archiveId, updated);
+
+  // 因缘际会（七章）：5 月末生成年度清单（确定性：存档+年份种子）；离开 7 月全部过期
+  if (gameMonth === 6) {
+    const rng = createRng(hashSeed(archiveId, "karma", gameYear));
+    const events: StoredKarmaEvent[] = sampleKarmaEvents(rng, 3).map((e) => ({
+      kind: e.kind, name: e.name, options: e.options, consumed: false,
+    }));
+    await store.saveKarmaEvents(archiveId, events);
+  } else if (gameMonth === 8) {
+    await store.saveKarmaEvents(archiveId, []);
+  }
 
   const compass = generateCompass(await compassCtxFor(archiveId, updated), createRng(monthSeed(archiveId, updated.turnNo)));
   await store.saveCompass(archiveId, updated.turnNo, compass);

@@ -5,7 +5,7 @@ import pg from "pg";
 import type { PlayerState } from "@xunxian/shared";
 import type { CompassOption, NpcProfile } from "@xunxian/engine";
 import { archives, compassOptions, devices, playerStates, turnRecords } from "./schema.js";
-import type { ArchiveMeta, DestinyProgress, GameStore, InventoryItem, StoredRelation, TurnRecord } from "../store.js";
+import type { ArchiveMeta, DestinyProgress, GameStore, InventoryItem, StoredKarmaEvent, StoredRelation, TurnRecord } from "../store.js";
 
 // inventory 简表（v0 与内存实现等价；后续迁移至专门表）
 const INVENTORY_DDL = `
@@ -85,8 +85,10 @@ export class DrizzleStore implements GameStore {
       archive_id uuid PRIMARY KEY,
       npcs jsonb NOT NULL DEFAULT '[]',
       relations jsonb NOT NULL DEFAULT '[]',
-      destiny jsonb)`);
+      destiny jsonb,
+      karma jsonb NOT NULL DEFAULT '[]')`);
     await this.db.execute(sql`ALTER TABLE world_snapshots ADD COLUMN IF NOT EXISTS destiny jsonb`);
+    await this.db.execute(sql`ALTER TABLE world_snapshots ADD COLUMN IF NOT EXISTS karma jsonb`);
     await this.db.execute(INVENTORY_DDL);
     } finally {
       await this.db.execute(sql`SELECT pg_advisory_unlock(92021001)`);
@@ -232,14 +234,14 @@ export class DrizzleStore implements GameStore {
     return true;
   }
 
-  private async snapshot<T>(archiveId: string, column: "npcs" | "relations" | "destiny"): Promise<T[]> {
+  private async snapshot<T>(archiveId: string, column: "npcs" | "relations" | "destiny" | "karma"): Promise<T[]> {
     const res = await this.pool.query(
       `SELECT ${column} FROM world_snapshots WHERE archive_id = $1`, [archiveId]);
     const row = res.rows[0] as Record<string, unknown> | undefined;
     return ((row?.[column] as T[]) ?? []);
   }
 
-  private async upsertSnapshot(archiveId: string, column: "npcs" | "relations" | "destiny", value: unknown): Promise<void> {
+  private async upsertSnapshot(archiveId: string, column: "npcs" | "relations" | "destiny" | "karma", value: unknown): Promise<void> {
     await this.pool.query(
       `INSERT INTO world_snapshots (archive_id, ${column}) VALUES ($1, $2)
        ON CONFLICT (archive_id) DO UPDATE SET ${column} = $2`,
@@ -274,5 +276,13 @@ export class DrizzleStore implements GameStore {
 
   async updateArchiveStatus(archiveId: string, status: string): Promise<void> {
     await this.db.update(archives).set({ status, updatedAt: new Date() }).where(eq(archives.id, archiveId));
+  }
+
+  async getKarmaEvents(archiveId: string): Promise<StoredKarmaEvent[]> {
+    return this.snapshot<StoredKarmaEvent>(archiveId, "karma");
+  }
+
+  async saveKarmaEvents(archiveId: string, events: StoredKarmaEvent[]): Promise<void> {
+    await this.upsertSnapshot(archiveId, "karma", events);
   }
 }
