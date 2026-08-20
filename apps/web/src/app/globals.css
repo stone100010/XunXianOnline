@@ -1,0 +1,41 @@
+/* 仙侠水墨 · 暗金主题（docs/08 设计语言） */
+:root {
+  --bg: #0d1117;
+  --bg-card: rgba(255, 255, 255, 0.04);
+  --gold: #c8a24b;
+  --gold-dim: #8a6d2f;
+  --ink: #e6e1d5;
+  --ink-dim: #9e9788;
+  --cinnabar: #c0392b;
+  --jade: #3f9d7a;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Noto Serif SC", serif;
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100dvh;
+  padding: 0 16px calc(16px + env(safe-area-inset-bottom));
+}
+
+a {
+  color: var(--gold);
+  text-decoration: none;
+}
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--gold-dim);
+  border-radius: 8px;
+  padding: 16px;
+  margin-top: 12px;
+}
