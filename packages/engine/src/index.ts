@@ -9,3 +9,5 @@ export * from "./character/index.js";
 export * from "./world/index.js";
 export * from "./actions/intent.js";
 export * from "./events/index.js";
+export * from "./market/index.js";
+export * from "./npc/index.js";
