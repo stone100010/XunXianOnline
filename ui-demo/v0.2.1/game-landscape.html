@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>寻仙 · 横屏 UI v0.2.1（多页可滚动版）</title>
+<style>
+/* ═══════════ 寻仙 横屏 UI v0.2.0 · 多页版 ═══════════
+   主页（三区布局）+ 六大功能整页：坊市/背包/道缘/灵图/灵兽/传承
+   各页严格按设定文档规划（八/九/十一/十六/十七章） */
+:root{
+  --bg:#0b0f14;--bg2:#10161d;--card:rgba(255,255,255,.045);
+  --gold:#c8a24b;--gold-dim:#8a6d2f;--gold-bg:rgba(200,162,75,.12);
+  --ink:#e8e3d5;--dim:#9a9384;--line:rgba(200,162,75,.25);
+  --jade:#3f9d7a;--red:#c0392b;--blue:#5b8dd6;--purple:#9d7ede;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{height:auto;overflow-y:auto;scroll-behavior:smooth}
+body{min-height:100dvh;background:radial-gradient(ellipse 120% 80% at 20% -10%,#1a2430 0%,var(--bg) 55%),var(--bg);
+  color:var(--ink);font-family:"Noto Serif SC","Microsoft YaHei",serif;font-size:12px;user-select:none;
+  -webkit-overflow-scrolling:touch}
+button{font-family:inherit;cursor:pointer}
+input{font-family:inherit}
+/* ── 页面路由（文档流：display 切换，整页自然滚动）── */
+.page{display:none}
+.page.on{display:block;animation:pagein .28s ease-out}
+@keyframes pagein{from{opacity:0;transform:translateX(24px)}}
+#pHome{display:none}
+#pHome.on{display:flex;flex-direction:column;height:100dvh;overflow:hidden}
+/* ── 子页头部 ── */
+.phead{position:sticky;top:0;z-index:10;height:44px;display:flex;align-items:center;gap:10px;padding:0 14px;
+  border-bottom:1px solid var(--line);background:#0d1319ee;backdrop-filter:blur(8px)}
+.phead .back{width:32px;height:32px;border:1px solid var(--line);border-radius:8px;background:none;
+  color:var(--gold);font-size:15px}
+.phead .back:active{background:var(--gold-bg)}
+.phead b{font-size:15px;color:var(--gold);letter-spacing:3px}
+.phead .sub{font-size:10px;color:var(--dim)}
+.phead .sp{flex:1}
+.pbody{padding:12px 14px 64px;max-width:760px;margin:0 auto}
+/* ── 通用 ── */
+.tabs{display:flex;gap:6px;margin-bottom:10px}
+.tabs button{flex:1;padding:7px;border:1px solid var(--line);border-radius:8px;background:none;
+  color:var(--dim);font-size:12px;letter-spacing:1px}
+.tabs button.on{color:var(--gold);border-color:var(--gold);background:var(--gold-bg)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:10px}
+.pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:9px;white-space:nowrap}
+.p-green{background:rgba(63,157,122,.16);color:#6fc7a4}.p-gold{background:var(--gold-bg);color:var(--gold)}
+.p-red{background:rgba(192,57,43,.16);color:#e08a7d}.p-blue{background:rgba(91,141,214,.16);color:#8db2e8}
+.p-gray{background:rgba(255,255,255,.07);color:var(--dim)}.p-purple{background:rgba(157,126,222,.16);color:#c0a4ee}
+#toast{position:fixed;left:50%;bottom:60px;transform:translateX(-50%) translateY(-8px);background:#060a0e;
+  border:1px solid var(--gold);color:var(--gold);padding:8px 22px;border-radius:99px;font-size:12px;
+  opacity:0;transition:.3s;z-index:99;pointer-events:none}
+#toast.on{opacity:1;transform:translateX(-50%)}
+
+/* ═══════ 主页（三区） ═══════ */
+#top{height:34px;flex:0 0 34px;display:flex;align-items:center;gap:10px;padding:0 12px;
+  background:linear-gradient(180deg,rgba(200,162,75,.08),transparent);border-bottom:1px solid var(--line)}
+#top .logo{color:var(--gold);font-weight:700;letter-spacing:2px}
+#top .time{display:flex;gap:10px;color:var(--dim)}#top .time b{color:var(--ink)}
+#top .lifespan.low{color:var(--red);animation:breath 1.6s infinite}
+@keyframes breath{50%{opacity:.45}}
+#top .spacer{flex:1}
+.chip{padding:2px 10px;border:1px solid var(--line);border-radius:99px;color:var(--dim);font-size:11px}
+.chip.gold{color:var(--gold);border-color:var(--gold)}
+#main{flex:1;display:grid;grid-template-columns:186px 1fr 172px;min-height:0}
+.col{min-height:0;overflow-y:auto;touch-action:pan-y;-webkit-overflow-scrolling:touch;scrollbar-width:thin;scrollbar-color:var(--gold-dim) transparent}
+.col::-webkit-scrollbar{width:3px}.col::-webkit-scrollbar-thumb{background:var(--gold-dim)}
+#left{border-right:1px solid var(--line);padding:8px;display:flex;flex-direction:column;gap:8px}
+#right{border-left:1px solid var(--line);padding:8px;display:flex;flex-direction:column;gap:8px}
+#center{display:flex;flex-direction:column;min-width:0}
+.avatar{display:flex;align-items:center;gap:8px}
+.seal{width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,#22303e,#101820);
+  border:1px solid var(--gold-dim);display:flex;align-items:center;justify-content:center;font-size:22px}
+.avatar .nm{font-size:14px;font-weight:700}.avatar .sub{color:var(--dim);font-size:10px;margin-top:2px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px}
+.pt{font-size:10px;color:var(--gold);letter-spacing:1px;margin-bottom:6px;display:flex;justify-content:space-between}
+.pt span{color:var(--dim)}
+.realm{display:flex;align-items:center;gap:8px}
+.ring{width:52px;height:52px;flex:0 0 52px;position:relative}
+.ring svg{transform:rotate(-90deg)}
+.ring .lbl{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ring .lbl b{font-size:11px;color:var(--gold)}.ring .lbl i{font-style:normal;font-size:9px;color:var(--dim)}
+.realm .info{font-size:11px;line-height:1.7}.realm .info b{color:var(--gold)}
+.base .brow{display:flex;align-items:center;gap:6px;font-size:10px;margin-bottom:4px}
+.brow .k{width:16px;color:var(--dim)}.brow .v{width:18px;text-align:right;color:var(--ink)}
+.brow .bar{flex:1;height:5px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden}
+.brow .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--gold-dim),var(--gold))}
+.wallet{display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:10px}
+.wallet div{color:var(--dim)}.wallet b{color:var(--gold);font-size:11px}
+.pow{display:flex;justify-content:space-between;font-size:11px}
+.pow b{color:var(--gold);font-size:13px}.pow span{color:var(--dim)}
+.mom{height:5px;background:rgba(255,255,255,.06);border-radius:3px;margin-top:5px;overflow:hidden}
+.mom i{display:block;height:100%;width:62%;background:linear-gradient(90deg,#7a5d2b,var(--gold))}
+.nav{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.nav button{padding:8px 2px;background:var(--card);border:1px solid var(--line);border-radius:7px;
+  color:var(--ink);font-size:10px;transition:.15s}
+.nav button:active{background:var(--gold-bg);border-color:var(--gold)}
+.nav button i{display:block;font-style:normal;font-size:16px;margin-bottom:2px}
+#stage{flex:1;display:flex;flex-direction:column;min-height:0}
+.scene{height:52px;flex:0 0 52px;margin:8px 8px 0;border-radius:8px;position:relative;overflow:hidden;
+  background:linear-gradient(120deg,#1d2a38,#131b24 60%);border:1px solid var(--line)}
+.scene .mist{position:absolute;inset:0;background:radial-gradient(ellipse 30% 60% at 20% 100%,rgba(200,162,75,.15),transparent),radial-gradient(ellipse 40% 50% at 85% 90%,rgba(63,157,122,.10),transparent)}
+.scene .tag{position:absolute;left:10px;bottom:8px;font-size:10px;color:var(--dim)}
+.scene .tag b{color:var(--ink);font-size:12px}
+.scene .fx{position:absolute;width:3px;height:3px;border-radius:50%;background:var(--gold);opacity:.5;animation:float 6s linear infinite}
+@keyframes float{from{transform:translateY(30px)}to{transform:translateY(-60px)}}
+.mtabs{display:flex;gap:2px;padding:8px 8px 0}
+.mtabs button{flex:1;padding:6px;border:none;border-bottom:2px solid transparent;background:none;color:var(--dim);font-size:12px;letter-spacing:1px}
+.mtabs button.on{color:var(--gold);border-bottom-color:var(--gold)}
+.view{flex:1;min-height:0;overflow-y:auto;touch-action:pan-y;-webkit-overflow-scrolling:touch;padding:8px;scrollbar-width:thin}
+.view::-webkit-scrollbar{width:3px}.view::-webkit-scrollbar-thumb{background:var(--gold-dim)}
+.kind{font-size:9px;padding:1px 6px;border-radius:99px;margin-right:6px;vertical-align:1px}
+.k-mingtu{background:rgba(200,162,75,.18);color:var(--gold)}
+.k-yinyuan{background:rgba(91,141,214,.15);color:#8db2e8}
+.k-lishi{background:rgba(63,157,122,.15);color:#6fc7a4}
+.k-daoyuan{background:rgba(192,57,43,.14);color:#e08a7d}
+.k-baiyi{background:rgba(157,126,222,.15);color:#c0a4ee}
+.k-biguan{background:rgba(255,255,255,.08);color:var(--dim)}
+.opt{display:flex;align-items:center;gap:8px;padding:7px 10px;margin-bottom:6px;border-radius:8px;cursor:pointer;
+  background:var(--card);border:1px solid var(--line);transition:transform .08s}
+.opt:active{transform:scale(.985)}
+.opt .no{width:18px;height:18px;flex:0 0 18px;border-radius:50%;border:1px solid var(--gold-dim);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--gold)}
+.opt .tx{flex:1;font-size:12px;line-height:1.5}
+.opt .fresh{font-size:9px;color:var(--dim)}
+.opt.destiny{border-color:var(--gold);background:linear-gradient(90deg,rgba(200,162,75,.14),rgba(200,162,75,.03))}
+.opt.risk .tx::after{content:" ⚠️";font-size:10px}
+#nar{white-space:pre-wrap;font-size:13px;line-height:2;padding:4px 6px}
+#nar .cur{border-right:1px solid var(--gold);animation:blink .9s infinite}
+@keyframes blink{50%{opacity:0}}
+#inputbar{flex:0 0 46px;display:flex;gap:8px;align-items:center;padding:0 8px 8px}
+#inputbar input{flex:1;height:34px;background:rgba(0,0,0,.25);border:1px solid var(--line);border-radius:8px;color:var(--ink);padding:0 12px;font-size:12px;outline:none}
+#inputbar input:focus{border-color:var(--gold)}
+#inputbar .send{width:56px;height:34px;border:none;border-radius:8px;background:var(--gold-bg);border:1px solid var(--gold);color:var(--gold)}
+#inputbar .next{height:34px;padding:0 22px;border:none;border-radius:8px;background:linear-gradient(135deg,#d9b45f,#a97f2e);color:#151006;font-weight:700;display:none}
+.quest{border-left:2px solid var(--gold);padding:6px 8px;background:var(--card);border-radius:0 6px 6px 0;margin-bottom:6px}
+.quest .t{font-size:11px;color:var(--gold)}.quest .s{font-size:10px;color:var(--dim);margin-top:2px}
+.stages{display:flex;gap:3px;margin-top:6px}
+.stages i{flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,.1)}
+.stages i.done{background:var(--gold)}.stages i.cur{background:var(--gold);opacity:.5;animation:breath 2s infinite}
+.brief{font-size:10px;line-height:1.8}
+.brief .h{color:var(--gold);margin:4px 0 2px}
+.brief .it{color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rel .relrow{display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px dashed rgba(255,255,255,.06);font-size:10px}
+.rel .face{width:22px;height:22px;border-radius:50%;background:#1c2733;border:1px solid var(--line);display:flex;align-items:center;justify-content:center}
+.rel .nm{flex:1}.rel .nm i{font-style:normal;color:var(--dim);display:block;font-size:9px}
+.rel .bar{width:44px;height:3px;background:rgba(255,255,255,.08);border-radius:2px;overflow:hidden}
+.rel .bar i{display:block;height:100%;background:var(--gold)}
+.overlay{position:fixed;inset:0;background:rgba(5,8,12,.82);backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;z-index:70}
+.overlay.show{display:flex}
+.dlg{width:min(480px,92vw);background:linear-gradient(160deg,#141d27,#0d141b);border:1px solid var(--gold);border-radius:14px;padding:20px 22px;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+.dlg .h{text-align:center;color:var(--gold);letter-spacing:3px;font-size:14px}
+.wheel{height:100px;display:flex;align-items:center;justify-content:center;font-size:52px;margin:10px 0}
+.wheel.spin{animation:spin .9s cubic-bezier(.2,.7,.3,1)}
+@keyframes spin{0%{transform:rotate(0) scale(1.6);filter:blur(4px)}100%{transform:rotate(360deg) scale(1)}}
+.judge{text-align:center;font-size:12px;color:var(--dim);line-height:2;min-height:44px}
+.judge b{color:var(--ink)}
+.dlg .row{text-align:center;margin-top:10px}
+.dlg button{padding:9px 30px;border:none;border-radius:8px;font-weight:700;background:linear-gradient(135deg,#d9b45f,#a97f2e);color:#151006}
+#rotate{position:fixed;inset:0;z-index:99;background:var(--bg);display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:var(--dim);font-size:14px}
+#rotate .ph{font-size:44px;animation:rot 2s ease-in-out infinite}
+@keyframes rot{0%,20%{transform:rotate(0)}60%,100%{transform:rotate(90deg)}}
+@media (orientation:portrait){#rotate{display:flex}}
+@media (max-width:560px){#main{grid-template-columns:160px 1fr}#right{display:none}}
+
+/* ═══════ 🏪 坊市页（十六章·三级交易网络） ═══════ */
+.mgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.mitem{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:10px}
+.mitem .hd{display:flex;justify-content:space-between;align-items:center}
+.mitem .hd b{font-size:13px}
+.mitem .meta{font-size:10px;color:var(--dim);margin:4px 0 8px;line-height:1.6}
+.mitem .acts{display:flex;gap:6px}
+.mitem .acts button{flex:1;padding:6px;border-radius:7px;border:1px solid var(--line);background:none;color:var(--ink);font-size:11px}
+.mitem .acts .buy{border-color:var(--gold);background:var(--gold-bg);color:var(--gold);font-weight:600}
+.mitem.locked{opacity:.4;pointer-events:none}
+.heishi .mitem{border-color:rgba(192,57,43,.3)}
+.heishi .mitem b::before{content:"🕯️ "}
+.locktip{font-size:10px;color:var(--red);text-align:center;padding:14px}
+/* ═══════ 🎒 背包页（九章·分类） ═══════ */
+.baggrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.bagi{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:9px;text-align:center;position:relative}
+.bagi .ic{font-size:24px}
+.bagi b{display:block;font-size:11px;margin-top:4px}
+.bagi span{font-size:9px;color:var(--dim)}
+.bagi .qty{position:absolute;top:5px;right:6px;font-size:9px;color:var(--gold)}
+.bagi.benming{border-color:var(--gold);background:linear-gradient(160deg,rgba(200,162,75,.12),transparent)}
+@media(max-width:560px){.baggrid{grid-template-columns:repeat(3,1fr)}}
+/* ═══════ 👥 道缘页（十一章·层级+态度矩阵+道友之能） ═══════ */
+.relcard{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:9px}
+.relcard .hd{display:flex;align-items:center;gap:10px}
+.relcard .face{width:42px;height:42px;border-radius:10px;background:#1c2733;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:22px}
+.relcard .hd .nm{flex:1}
+.relcard .hd .nm b{font-size:14px}
+.relcard .hd .nm i{font-style:normal;display:block;font-size:10px;color:var(--dim);margin-top:2px}
+.atti{display:grid;grid-template-columns:repeat(2,1fr);gap:4px;font-size:9px;margin-top:8px}
+.atti span{padding:3px 6px;border-radius:5px;background:rgba(255,255,255,.05);color:var(--dim);text-align:center}
+.skill-line{font-size:10px;color:var(--jade);margin-top:8px;padding-top:8px;border-top:1px dashed rgba(255,255,255,.08)}
+.enemy .relcard{border-color:rgba(192,57,43,.4)}
+/* ═══════ 🗺️ 灵图页（八章·三层钻入） ═══════ */
+#mapSvg{width:100%;height:240px}
+.mnode{cursor:pointer}
+.mnode text{fill:var(--dim);font-size:9px;text-anchor:middle}
+.mnode circle{fill:#18222e;stroke:var(--gold-dim);stroke-width:1.5;transition:.2s}
+.mnode:hover circle{stroke:var(--gold);filter:drop-shadow(0 0 6px rgba(200,162,75,.5))}
+.mnode.cur circle{stroke:var(--gold);fill:#241d0e}
+.mnode.cur text{fill:var(--gold)}
+.legend2{display:flex;gap:12px;font-size:9px;color:var(--dim);margin-top:6px}
+.regrow{display:flex;align-items:center;gap:8px;padding:9px;background:var(--card);border:1px solid var(--line);border-radius:9px;margin-bottom:7px;cursor:pointer}
+.regrow:hover{border-color:var(--gold-line,var(--gold))}
+.regrow .rn{flex:1;font-size:12px}.regrow .rn i{font-style:normal;display:block;font-size:9px;color:var(--dim);margin-top:2px}
+.meter{width:70px}.meter .l{font-size:8px;color:var(--dim);display:flex;justify-content:space-between}
+.meter .b{height:4px;background:rgba(255,255,255,.08);border-radius:2px;overflow:hidden;margin-top:2px}
+.meter .b i{display:block;height:100%;background:linear-gradient(90deg,#7a5d2b,var(--gold))}
+.plrow{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--card);border:1px solid var(--line);border-radius:8px;margin-bottom:6px;font-size:11px}
+.plrow .acc{margin-left:auto}
+.rumor{font-size:9px;color:var(--dim);margin-top:2px}
+/* ═══════ 🐉 灵兽页 ═══════ */
+.beastgrid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.beast{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:11px;display:flex;gap:10px}
+.beast .ic{width:46px;height:46px;border-radius:10px;background:#1c2733;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:26px}
+.beast .info{flex:1;font-size:10px;color:var(--dim);line-height:1.7}
+.beast .info b{font-size:13px;color:var(--ink)}
+.loyal{height:4px;background:rgba(255,255,255,.08);border-radius:2px;overflow:hidden;margin-top:5px}
+.loyal i{display:block;height:100%;background:linear-gradient(90deg,#2e6b56,var(--jade))}
+/* ═══════ 🏛️ 传承页（十七章） ═══════ */
+.inhgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.inhc{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:10px}
+.inhc .t{font-size:11px;color:var(--gold);margin-bottom:6px}
+.inhc .d{font-size:10px;color:var(--dim);line-height:1.8}
+.inhc .d b{color:var(--ink)}
+.heirbox{display:flex;gap:8px;margin-top:12px}
+.heirbox input{flex:1;background:rgba(0,0,0,.25);border:1px solid var(--line);border-radius:8px;color:var(--ink);padding:9px 12px;font-size:13px;outline:none}
+.heirbox input:focus{border-color:var(--gold)}
+.heirbox button{padding:0 26px;border:none;border-radius:8px;background:linear-gradient(135deg,#d9b45f,#a97f2e);color:#151006;font-weight:700;font-size:13px}
+</style>
+</head>
+<body>
+
+<!-- ╔══════════ 主页 ╔══════════ -->
+<div class="page on" id="pHome">
+  <div id="top">
+    <span class="logo">✨寻仙</span>
+    <div class="time">
+      <span>🌙 <b>天玄历 3年6月</b></span><span>🎂 骨龄 <b>20岁</b></span>
+      <span class="lifespan">⏳ 寿元余 <b>38年</b></span>
+    </div>
+    <span class="spacer"></span>
+    <span class="chip gold">🌌 天命·圣体之路</span>
+    <span class="chip">📜 史册</span><span class="chip">⚙️</span>
+  </div>
+  <div id="main">
+    <div class="col" id="left">
+      <div class="avatar">
+        <div class="seal">🗡️</div>
+        <div><div class="nm">林寻</div><div class="sub">人族 · 中州圣城</div></div>
+      </div>
+      <div class="panel">
+        <div class="pt">修为 <span>Lv.14 / 100</span></div>
+        <div class="realm">
+          <div class="ring">
+            <svg width="52" height="52"><circle cx="26" cy="26" r="22" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="4"/>
+            <circle cx="26" cy="26" r="22" fill="none" stroke="#c8a24b" stroke-width="4" stroke-linecap="round" stroke-dasharray="138.2" stroke-dashoffset="96.7"/></svg>
+            <div class="lbl"><b>炼气</b><i>四层</i></div>
+          </div>
+          <div class="info">修为 <b>830</b>/2250<br>灵根 <b>火·上品</b><br>道韵 <b>天人感应 Lv.6</b></div>
+        </div>
+      </div>
+      <div class="panel base">
+        <div class="pt">道基五维</div>
+        <div class="brow"><span class="k">悟</span><div class="bar"><i style="width:34%"></i></div><span class="v">12</span></div>
+        <div class="brow"><span class="k">心</span><div class="bar"><i style="width:52%"></i></div><span class="v">18</span></div>
+        <div class="brow"><span class="k">根</span><div class="bar"><i style="width:41%"></i></div><span class="v">15</span></div>
+        <div class="brow"><span class="k">运</span><div class="bar"><i style="width:28%"></i></div><span class="v">10</span></div>
+        <div class="brow"><span class="k">血</span><div class="bar"><i style="width:9%"></i></div><span class="v">3</span></div>
+      </div>
+      <div class="panel">
+        <div class="pt">战力 <span>评级·初窥</span></div>
+        <div class="pow"><span>真实 <b>34</b></span><span>外显 22</span><span>蓄势 42/68</span></div>
+        <div class="mom"><i></i></div>
+      </div>
+      <div class="panel">
+        <div class="pt">灵石</div>
+        <div class="wallet">
+          <div>下品 <b>1,240</b></div><div>中品 <b>36</b></div>
+          <div>上品 <b>2</b></div><div>极品 <b>0</b></div>
+        </div>
+      </div>
+      <div class="panel" style="flex:1">
+        <div class="pt">百艺 <span>炼丹 Lv.9</span></div>
+        <div class="nav">
+          <button onclick="nav('pMarket')"><i>🏪</i>坊市</button>
+          <button onclick="nav('pBag')"><i>🎒</i>背包</button>
+          <button onclick="nav('pRel')"><i>👥</i>道缘</button>
+          <button onclick="nav('pMap')"><i>🗺️</i>灵图</button>
+          <button onclick="nav('pBeast')"><i>🐉</i>灵兽</button>
+          <button onclick="nav('pInherit')"><i>🏛️</i>传承</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="stage">
+      <div class="scene">
+        <div class="mist"></div>
+        <span class="fx" style="left:12%"></span><span class="fx" style="left:34%;animation-delay:2s"></span>
+        <span class="fx" style="left:58%;animation-delay:4s"></span><span class="fx" style="left:80%;animation-delay:1s"></span>
+        <div class="tag">📍 <b>中州 · 太虚宗 · 外门灵兽园</b>　传闻：后山禁地夜有青光…</div>
+      </div>
+      <div class="mtabs">
+        <button class="on" onclick="mtab(0,this)">✍️ 决策罗盘</button>
+        <button onclick="mtab(1,this)">📖 仙途叙事</button>
+        <button onclick="mtab(2,this)">⚔️ 斗法（本月）</button>
+      </div>
+      <div class="view" id="v0">
+        <div class="opt destiny" onclick="act()"><span class="no">①</span><span class="tx"><span class="kind k-mingtu">命途</span>【天命·星辰初淬】以《星辰锻体术》淬炼圣体之基</span><span class="fresh">🌌 天命</span></div>
+        <div class="opt destiny risk" onclick="act()"><span class="no">②</span><span class="tx"><span class="kind k-mingtu">命途</span>循血脉悸动，独探后山禁地青光之源</span><span class="fresh">⚠️ 风险</span></div>
+        <div class="opt" onclick="act()"><span class="no">③</span><span class="tx"><span class="kind k-yinyuan">因缘</span>【因缘·兽潮将起】随执法堂驰援南岭兽潮</span><span class="fresh">保鲜2月</span></div>
+        <div class="opt" onclick="act()"><span class="no">④</span><span class="tx"><span class="kind k-lishi">历练</span>【机缘·古修士洞府】山壁裂缝透出微光（炼气可入）</span><span class="fresh">保鲜3月</span></div>
+        <div class="opt" onclick="act()"><span class="no">⑤</span><span class="tx"><span class="kind k-daoyuan">道缘</span>拜访坊市老陈，打听青光之秘</span><span class="fresh">保鲜1月</span></div>
+        <div class="opt" onclick="act()"><span class="no">⑥</span><span class="tx"><span class="kind k-baiyi">百艺</span>开炉炼制「聚气丹」×3，坊市行情上涨二成</span><span class="fresh">保鲜2月</span></div>
+        <div class="opt" onclick="act()"><span class="no">⑦</span><span class="tx"><span class="kind k-biguan">闭关</span>闭关苦修一月，温养真元</span><span class="fresh">常驻</span></div>
+        <div class="opt" onclick="act()"><span class="no">⑧</span><span class="tx"><span class="kind k-mingtu">命途</span>研读《星辰锻体术》第二重图解</span><span class="fresh">保鲜2月</span></div>
+        <div class="opt" onclick="act()"><span class="no">⑨</span><span class="tx"><span class="kind k-yinyuan">因缘</span>黑玉彻夜发烫，似有旧识来信</span><span class="fresh">保鲜1月</span></div>
+        <div class="opt" onclick="act()"><span class="no">⑩</span><span class="tx"><span class="kind k-lishi">历练</span>东行三十里，探妖兽森林外围猎内丹</span><span class="fresh">保鲜2月</span></div>
+        <div class="opt" onclick="act()"><span class="no">⑪</span><span class="tx"><span class="kind k-daoyuan">道缘</span>与苏小蛮切磋剑法，赌一坛灵酒</span><span class="fresh">保鲜1月</span></div>
+        <div class="opt" onclick="act()"><span class="no">⑫</span><span class="tx"><span class="kind k-baiyi">百艺</span>为坊市炼制「清心丹」×2 赚取灵石</span><span class="fresh">保鲜2月</span></div>
+        <div class="opt" onclick="act()"><span class="no">⑬</span><span class="tx"><span class="kind k-lishi">历练</span>感应北岭灵脉微震，或有灵矿现世</span><span class="fresh">保鲜3月</span></div>
+        <div class="opt" onclick="act()"><span class="no">⑭</span><span class="tx"><span class="kind k-daoyuan">道缘</span>写信予恩师，请教圣体之惑</span><span class="fresh">保鲜1月</span></div>
+        <div class="opt" onclick="act()"><span class="no">⑮</span><span class="tx"><span class="kind k-biguan">闭关</span>静坐冥思，参悟天人感应之机</span><span class="fresh">常驻</span></div>
+      </div>
+      <div class="view" id="v1" style="display:none"><div id="nar"></div></div>
+      <div class="view" id="v2" style="display:none">
+        <div class="card" style="text-align:center;padding:18px">
+          <div style="font-size:11px;color:var(--dim)">本月尚无斗法 · 遇敌后此处回放命运骰子</div>
+          <button style="margin-top:12px;padding:8px 26px;border-radius:8px;border:1px solid var(--gold);background:var(--gold-bg);color:var(--gold)" onclick="dice()">🎲 演示：掷出命运骰子</button>
+        </div>
+      </div>
+      <div id="inputbar">
+        <input id="free" placeholder="🖋️ 自由描述本月行动，无视以上选项…" onkeydown="if(event.key==='Enter')freego()">
+        <button class="send" onclick="freego()">行动</button>
+        <button class="next" id="nextBtn" onclick="toast('🌙 世界演化中…（demo）')">进入下月</button>
+      </div>
+    </div>
+
+    <div class="col" id="right">
+      <div class="pt" style="padding-left:2px">未竟仙途</div>
+      <div class="quest">
+        <div class="t">🔴 圣体之路 · 星辰初淬</div>
+        <div class="s">待抉择 · 已等待1年（1-3月天命之召）</div>
+        <div class="stages"><i class="done"></i><i class="cur"></i><i></i><i></i><i></i><i></i></div>
+      </div>
+      <div class="quest" style="border-left-color:var(--dim)">
+        <div class="t" style="color:var(--dim)">⚪ 兽潮将起</div><div class="s">因缘际会 · 保鲜至7月</div>
+      </div>
+      <div class="pt" style="margin-top:6px;padding-left:2px">🔮 天机简报</div>
+      <div class="panel brief">
+        <div class="h">🗺️ 域动态</div><div class="it">· 中州：太虚宗外门大比，前十入内门</div><div class="it">· 东荒：妖兽森林深处现上古禁制</div>
+        <div class="h">⚔️ 势力</div><div class="it">· 血煞门吞并两小魔门，扩张加速</div>
+        <div class="h">📈 行情</div><div class="it">· 聚气丹价格微降 · 妖兽内丹涨二成</div>
+      </div>
+      <div class="pt" style="margin-top:6px;padding-left:2px">道缘速览</div>
+      <div class="panel rel" style="padding:2px 8px">
+        <div class="relrow"><div class="face">🧓</div><div class="nm">陈老<i>炼丹师·道友</i></div><div class="bar"><i style="width:72%"></i></div></div>
+        <div class="relrow"><div class="face">👧</div><div class="nm">苏小蛮<i>剑修·熟识</i></div><div class="bar"><i style="width:46%"></i></div></div>
+        <div class="relrow"><div class="face">🧙</div><div class="nm">玄机子<i>散修·一面之缘</i></div><div class="bar"><i style="width:18%"></i></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ╔══════════ 🏪 坊市页（十六章） ╔══════════ -->
+<div class="page" id="pMarket">
+  <div class="phead">
+    <button class="back" onclick="back()">←</button>
+    <b>坊 市</b><span class="sub">三级交易网络 · 十六章</span>
+    <span class="sp"></span>
+    <span class="chip gold" id="mkWallet">💎 1,240</span>
+  </div>
+  <div class="pbody">
+    <div class="tabs" id="mkTabs">
+      <button class="on" onclick="mkTier(0,this)">🏛️ 正市（价稳·小议价）</button>
+      <button onclick="mkTier(1,this)">🕯️ 地下黑市（需引荐·大议价）</button>
+      <button onclick="mkTier(2,this)">🔑 宗门秘库（金丹/核心弟子）</button>
+    </div>
+    <div id="mkArea"></div>
+  </div>
+</div>
+
+<!-- ╔══════════ 🎒 背包页（九章） ╔══════════ -->
+<div class="page" id="pBag">
+  <div class="phead">
+    <button class="back" onclick="back()">←</button><b>储 物 袋</b><span class="sub">下品储物袋 · 12/20 格</span>
+    <span class="sp"></span><span class="chip">总价值 ≈ 4,260 💎</span>
+  </div>
+  <div class="pbody">
+    <div class="tabs" id="bagTabs">
+      <button class="on" onclick="bagTab('all',this)">全部</button>
+      <button onclick="bagTab('dan',this)">丹药</button>
+      <button onclick="bagTab('qi',this)">法器</button>
+      <button onclick="bagTab('cai',this)">灵材</button>
+      <button onclick="bagTab('fu',this)">符箓</button>
+      <button onclick="bagTab('ren',this)">任务物</button>
+    </div>
+    <div class="baggrid" id="bagGrid"></div>
+    <p style="font-size:10px;color:var(--dim);margin-top:12px">📦 被夺装备可击杀原主夺回 · 破损法器需炼器师修复（耐久-1 标红）</p>
+  </div>
+</div>
+
+<!-- ╔══════════ 👥 道缘页（十一章） ╔══════════ -->
+<div class="page" id="pRel">
+  <div class="phead">
+    <button class="back" onclick="back()">←</button><b>道 缘 网 络</b><span class="sub">道友3 · 熟识4 · 一面之缘6 · 宿敌2</span>
+    <span class="sp"></span><span class="chip">久未问候将衰减</span>
+  </div>
+  <div class="pbody" id="relBody"></div>
+</div>
+
+<!-- ╔══════════ 🗺️ 灵图页（八章·三层钻入） ╔══════════ -->
+<div class="page" id="pMap">
+  <div class="phead">
+    <button class="back" onclick="mapBack()">←</button><b id="mapTitle">天玄灵图</b><span class="sub" id="mapSub">第一层 · 七大修真域</span>
+    <span class="sp"></span><span class="chip gold" id="mapLoc">📍 中州</span>
+  </div>
+  <div class="pbody" id="mapBody"></div>
+</div>
+
+<!-- ╔══════════ 🐉 灵兽页 ╔══════════ -->
+<div class="page" id="pBeast">
+  <div class="phead">
+    <button class="back" onclick="back()">←</button><b>灵 兽 园</b><span class="sub">契约兽 2/3 · 外门灵兽园寄养</span>
+    <span class="sp"></span><span class="chip">御兽术 Lv.4</span>
+  </div>
+  <div class="pbody"><div class="beastgrid" id="beastGrid"></div></div>
+</div>
+
+<!-- ╔══════════ 🏛️ 传承页（十七章） ╔══════════ -->
+<div class="page" id="pInherit">
+  <div class="phead">
+    <button class="back" onclick="back()">←</button><b>道 统 传 承</b><span class="sub">衣钵传承 · 道统绵延</span>
+    <span class="sp"></span><span class="chip gold">寿元余 38 年</span>
+  </div>
+  <div class="pbody">
+    <p style="font-size:11px;color:var(--dim);margin-bottom:10px">寿元将尽（或主动开坛）时，将衣钵传于继承者，以继承者身份继续仙途：</p>
+    <div class="inhgrid">
+      <div class="inhc"><div class="t">💎 灵石资产（90%）</div><div class="d">下品 <b>1,116</b> · 中品 <b>32</b> · 上品 <b>2</b></div></div>
+      <div class="inhc"><div class="t">📦 灵物（储物袋整袋）</div><div class="d">全部灵物随袋传承 · 含本命法宝 <b>青蛇剑</b></div></div>
+      <div class="inhc"><div class="t">👥 道缘网络</div><div class="d">心腹道缘（好感≥80）<b>陈老</b> 延续 · 其余渐疏</div></div>
+      <div class="inhc"><div class="t">📜 功法心得（道基五成+功法六成）</div><div class="d">《星辰锻体术》Lv.14→<b>8</b> · 道基各维 ×50%</div></div>
+    </div>
+    <div class="heirbox">
+      <input id="heirName" placeholder="继承者姓名（1-12字）">
+      <button onclick="inhConfirm()">🏛️ 开坛传法</button>
+    </div>
+    <p style="font-size:10px;color:var(--dim);margin-top:10px">※ 传承后当前角色退场，以继承者（16岁凡人之躯）继续；轮回转世请于身死道消时选择。</p>
+  </div>
+</div>
+
+<!-- 命运骰子/结算/传承确认弹层 -->
+<div class="overlay" id="diceOv"><div class="dlg">
+  <div class="h">命 运 骰 子</div>
+  <div class="wheel" id="wheel">🎲</div>
+  <div class="judge" id="judge">对手气息浩瀚如海，巨大灵压几乎让你难以呼吸。<br>这一战，<b>凶多吉少</b>。</div>
+  <div class="row"><button onclick="closeOv('diceOv')">收 起</button></div>
+</div></div>
+<div class="overlay" id="settle"><div class="dlg">
+  <div class="h">📜 月 末 结 算</div>
+  <div style="font-size:12px;color:var(--dim);margin-top:8px">天玄历3年6月 · 随执法堂驰援南岭</div>
+  <div style="font-size:12px;line-height:2.1;margin-top:6px">
+    ⚔️ 斗法：赤鳞蟒王（战力41）<b style="color:var(--jade)">胜</b><br>
+    🎲 命运骰子：<b>🌟鸿运当头 +15%</b><br>
+    🧬 修为 <b>+180</b>　升入 <b>炼气五层</b><br>
+    📦 获得 <b>蟒胆</b>×1 · <b>妖兽内丹</b>×2<br>
+    🤝 陈老 好感 <b>+9</b>（熟识→道友）<br>💎 灵石 <b>+320</b>
+  </div>
+  <div class="row"><button onclick="closeOv('settle');document.getElementById('nextBtn').style.display='block'">查 看 叙 事</button></div>
+</div></div>
+<div class="overlay" id="inhOv"><div class="dlg">
+  <div class="h">🏛️ 道 统 绵 延</div>
+  <div style="font-size:13px;line-height:2;margin-top:10px" id="inhText"></div>
+  <div class="row"><button onclick="closeOv('inhOv');back()">以继承者身份继续</button></div>
+</div></div>
+
+<button id="toTop" onclick="window.scrollTo({top:0,behavior:'smooth'})" style="position:fixed;right:14px;bottom:18px;width:38px;height:38px;border-radius:50%;border:1px solid var(--gold);background:#0d1319ee;color:var(--gold);font-size:15px;z-index:40;opacity:0;pointer-events:none;transition:.25s">↑</button>
+<div id="toast"></div>
+<div id="rotate"><div class="ph">📱</div><div>建议横屏获得最佳体验</div>
+<button onclick="document.getElementById('rotate').style.display='none'" style="margin-top:6px;padding:8px 24px;border:1px solid var(--gold);background:var(--gold-bg);color:var(--gold);border-radius:8px">竖屏继续</button>
+<div style="font-size:11px;margin-top:10px">寻仙 · 月令回合制修仙模拟器</div></div>
+
+<script>
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+let wallet=1240;
+/* ── 路由（文档流切换 + 回顶按钮显隐）── */
+function nav(id){$('#'+id).classList.add('on');window.scrollTo(0,0)}
+function back(){$$('.page.on').forEach(p=>{if(p.id!=='pHome')p.classList.remove('on')});window.scrollTo(0,0)}
+window.addEventListener('scroll',()=>{
+  const t=$('#toTop');const show=window.scrollY>120;
+  t.style.opacity=show?1:0;t.style.pointerEvents=show?'auto':'none';
+},{passive:true});
+/* toast */
+let tt;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),2200)}
+/* 主页 tabs/叙事/骰子 */
+function mtab(i,btn){$$('.mtabs button').forEach(b=>b.classList.remove('on'));btn.classList.add('on');[0,1,2].forEach(k=>$('#v'+k).style.display=k===i?'':'none')}
+function act(){$('#settle').classList.add('show');type(`六月南岭，兽潮如墨。执法堂剑光纵横，你随队而入——
+赤鳞蟒王自火光中昂首，鳞甲映月如血。你默运《星辰锻体术》，星辉自百穴透体而出……`)}
+function dice(){const faces=['⚡','🌟','🍀','⚖️','🌫️','💨','💀'];const w=$('#wheel');w.classList.remove('spin');void w.offsetWidth;w.classList.add('spin');
+  let n=0;const t=setInterval(()=>{w.textContent=faces[n++%7]},90);
+  setTimeout(()=>{clearInterval(t);w.textContent='🌟';$('#judge').innerHTML='脑海中闪过精妙破解之法，<b>运势在你这边</b>。（+15%）'},900);
+  $('#diceOv').classList.add('show')}
+function closeOv(id){$('#'+id).classList.remove('show')}
+function freego(){const v=$('#free').value.trim();if(!v)return;toast('🖋️ 天道解析你的意图：'+(v.length>14?v.slice(0,14)+'…':v));$('#free').value=''}
+function type(text){mtab(1,$$('.mtabs button')[1]);const el=$('#nar');el.innerHTML='';let i=0;clearInterval(window._t);
+  window._t=setInterval(()=>{if(i>=text.length){clearInterval(window._t);el.innerHTML=text.replace(/\n/g,'<br>');return}
+  el.innerHTML=text.slice(0,++i).replace(/\n/g,'<br>')+'<span class="cur"></span>'},28)}
+
+/* ═══ 坊市（十六章） ═══ */
+const MK=[
+ [ /* 正市 */
+  ["聚气丹","丹药·品1","辅助炼气修炼",20,"buy"],["清心丹","丹药·品1","稳定道心抗心魔",31,"buy"],
+  ["疗伤丹","丹药·品2","缩短休养期",52,"buy"],["精铁剑","法器·品1","凡兵利器",58,"buy"],
+  ["百年灵草","灵材·品1","炼丹辅料",24,"buy"],["聚灵阵旗","阵旗·品2","小范围提升灵气",310,"buy"]],
+ [ /* 黑市 */
+  ["噬魂钉","邪器·品3","禁术 · 附魂反噬",640,"buy"],["赃物·火纹法刀","法器·品3","来路不明 · 原价三折",300,"buy"],
+  ["血煞门令牌","信物","可混入血煞门外围",880,"buy"],["黑市情报·秘境图","情报","坠魔谷内层路线",150,"buy"]],
+ [ /* 秘库 */
+  ["镇派功法·太虚剑经","功法·天品","贡献度 1200",0,"lock"],["化婴丹","丹药·品5","贡献度 800",0,"lock"],
+  ["上古遗宝·玄天镜","法宝·品6","贡献度 3000",0,"lock"]]
+];
+function mkTier(i,btn){
+  $$('#mkTabs button').forEach(b=>b.classList.remove('on'));btn.classList.add('on');
+  const area=$('#mkArea');
+  if(i===2){
+    area.innerHTML=`<div class="locktip">🔑 宗门秘库：需修为≥金丹，或为核心弟子，或持请帖<br>（重「道缘与贡献度」而非灵石 · 十六章三）</div>`+
+      MK[2].map(m=>`<div class="mitem locked" style="margin-bottom:8px"><div class="hd"><b>${m[0]}</b><span class="pill p-gold">${m[1]}</span></div><div class="meta">${m[2]}</div></div>`).join('');
+    return;
+  }
+  area.className=i===1?'heishi':'';
+  area.innerHTML=MK[i].map(m=>`<div class="mitem" style="display:inline-block;width:calc(50% - 4px);margin:0 4px 8px 0;vertical-align:top">
+    <div class="hd"><b>${m[0]}</b><span class="pill ${i===1?'p-red':'p-blue'}">${m[1]}</span></div>
+    <div class="meta">${m[2]}<br>💎 ${m[3]}${i===1?' · 可议价30%/以物易物':' · 议价空间5%'}</div>
+    <div class="acts"><button class="buy" onclick="mkBuy('${m[0]}',${m[3]})">购买</button>
+    <button onclick="mkBargain('${m[0]}',${m[3]},${i})">${i===1?'🤝 议价/易物':'议价'}</button></div>
+  </div>`).join('');
+}
+function mkBuy(n,p){if(wallet<p){toast('💎 灵石不足（需 '+p+'）');return}wallet-=p;$('#mkWallet').textContent='💎 '+wallet.toLocaleString();toast('✅ 购得【'+n+'】· 余 '+wallet)}
+function mkBargain(n,p,tier){
+  const cut=tier===1?0.3:0.05;const r=Math.random();
+  if(r<0.35){toast('掌柜摇头：「这价码，不能再让了。」');return}
+  const fin=Math.round(p*(1-r*cut));
+  if(fin>=p){toast('「不二价。」');return}
+  toast(`${r>0.7?'巧舌如簧，掌柜咬牙让价':'一番讨价还价'}：${n} ${p}→${fin} 💎，是否成交？`);
+}
+mkTier(0,$$('#mkTabs button')[0]);
+
+/* ═══ 背包（九章） ═══ */
+const BAG=[
+ ["dan","🧪",4,"聚气丹","丹药·品1"],["dan","🧪",2,"疗伤丹","丹药·品2"],
+ ["qi","🗡️",1,"青蛇剑","本命法宝·品2"],["qi","🛡️",1,"玄铁护腕","法器·品2·耐久-1"],
+ ["cai","🌿",6,"百年灵草","灵材·品1"],["cai","🔮",3,"妖兽内丹","灵材·品2"],
+ ["cai","🌑",2,"魔晶","秘境产物"],["fu","📜",2,"护身符","符箓·替死"],
+ ["ren","🗺️",1,"坠魔谷路线图","任务物"],["ren","🖤",1,"发烫的黑玉","天命之物"],
+ ["cai","🐍",1,"蟒胆","妖兽材料"],["ren","📮",1,"恩师回信","道缘信物"]];
+function bagTab(c,btn){$$('#bagTabs button').forEach(b=>b.classList.remove('on'));btn.classList.add('on');
+  $('#bagGrid').innerHTML=BAG.filter(i=>c==='all'||i[0]===c).map(i=>`
+  <div class="bagi ${i[2]===1&&i[3]==='青蛇剑'?'benming':''}">
+    <span class="qty">×${i[2]}</span><div class="ic">${i[1]}</div><b>${i[3]}</b><span>${i[4]}</span>
+  </div>`).join('')}
+bagTab('all',$$('#bagTabs button')[0]);
+
+/* ═══ 道缘（十一章） ═══ */
+const RELS=[
+ ["🧓","陈老","炼丹师 · 金丹","道友",72,"亲","友","敬","","【道友之能·灵材援济】每月赠炼丹辅料一份","zhong"],
+ ["👧","苏小蛮","剑修 · 筑基","熟识",46,"亲","友","敬","","相识于外门大比，曾共历兽潮","zhong"],
+ ["👩‍⚕️","白芷仙子","灵植夫 · 筑基","道友",63,"疏","友","重","","【道友之能·手作敬献】每月赠低阶符箓一张","zhong"],
+ ["🧙","玄机子","散修 · 炼气","一面之缘",18,"疏","中","轻","","坊市偶遇，谈吐不凡","zhong"],
+ ["🧔","赵管事","宗门执事 · 筑基","陌路",8,"疏","敌","轻","","似对你这位新秀颇有微词","zhong"],
+ ["🗡️","血无痕","血煞门 · 金丹","宿敌",-30,"","敌","轻","","曾于秘境交手结怨 · 蛰伏观察中","enemy"],
+ ["👻","无名魔修","魔道 · 元婴","宿敌",-45,"","敌","重","","黑玉之秘的追索者 · 待机而动","enemy"]];
+$('#relBody').innerHTML=RELS.map(r=>`
+  <div class="${r[9]==='enemy'?'enemy':''}" style="${r[9]==='enemy'?'margin-top:12px':''}">
+    ${r[9]==='enemy'&&r[6]==='敌'&&RELS.indexOf(r)===5?'<div class="pt" style="margin-bottom:6px">⚔️ 宿敌</div>':''}
+    <div class="relcard">
+      <div class="hd">
+        <div class="face">${r[0]}</div>
+        <div class="nm"><b>${r[1]}</b><i>${r[2]}</i></div>
+        <span class="pill ${r[4]<0?'p-red':r[3]==='道友'?'p-gold':r[3]==='熟识'?'p-blue':'p-gray'}">${r[3]}</span>
+        <span style="color:${r[4]<0?'var(--red)':'var(--gold)'};font-size:12px;width:38px;text-align:right">${r[4]}</span>
+      </div>
+      <div class="brow" style="margin-top:8px"><span class="k" style="width:28px">好感</span>
+        <div class="bar"><i style="width:${Math.min(100,Math.abs(r[4]))}%;${r[4]<0?'background:linear-gradient(90deg,#7a3a32,var(--red))':''}"></i></div>
+        <span class="v">${r[4]<0?'敌意':''}</span></div>
+      <div class="atti">
+        <span>亲疏：${r[5]}</span><span>敌友：${r[6]}</span><span>敬轻：${r[7]}</span><span>往来：${r[8]||'—'}</span>
+      </div>
+      ${r[9]!=='enemy'&&r[10]?`<div class="skill-line">${r[10]}</div>`:''}
+      ${r[9]==='enemy'?`<div class="skill-line" style="color:var(--red)">⚠️ ${r[10]}</div>`:''}
+    </div>
+  </div>`).join('');
+
+/* ═══ 灵图（八章·三层钻入） ═══ */
+const DOMAINS=[
+ {k:"zhongzhou",n:"中州圣城",x:200,y:100,r:20,bonus:"气运+1",lm:.9,ya:.3,zm:.8,mj:.5,yj:.4},
+ {k:"donghuang",n:"东荒妖域",x:80,y:60,r:16,bonus:"根骨+10%",lm:.6,ya:.9,zm:.3,mj:.6,yj:.7},
+ {k:"nanming",n:"南明离火",x:90,y:170,r:16,bonus:"魅力+1",lm:.7,ya:.5,zm:.5,mj:.4,yj:.6},
+ {k:"xiji",n:"西极玄冰",x:310,y:50,r:15,bonus:"悟性+5%",lm:.8,ya:.4,zm:.6,mj:.5,yj:.8},
+ {k:"beiming",n:"北冥瀚海",x:320,y:160,r:15,bonus:"商贾+5%",lm:.5,ya:.6,zm:.5,mj:.4,yj:.5},
+ {k:"lingnan",n:"岭南百越",x:120,y:230,r:13,bonus:"根骨+5%",lm:.5,ya:.8,zm:.4,mj:.7,yj:.5},
+ {k:"haiwai",n:"海外仙岛",x:360,y:235,r:12,bonus:"气运+5%",lm:.6,ya:.5,zm:.4,mj:.8,yj:.9}];
+const LINKS=[[0,1,"#8a6d2f",1],[0,3,"#ccc",1],[0,4,"#ccc",1],[0,5,"#c0392b",1],[1,2,"#c0392b",1],[3,4,"#8a6d2f",1],[4,6,"#ccc",0],[5,6,"#ccc",0]];
+const REGIONS={
+ zhongzhou:[["太虚宗","镇派·太虚剑经 · 外门弟子",.85,.6],["丹盟中州分会","炼丹师云集 · 常客",.7,.5],["坊市·天枢街","三级坊市 · 正市/黑市",.9,.7],["后山禁地","上古遗迹 · 传闻夜有青光",.3,.9]],
+ donghuang:[["妖兽森林","妖兽密度极高 · 猎场",.4,.95],["蛮荒古城","遗府常现",.5,.8]]};
+const PLACES={
+ "坊市·天枢街":[["🏪 回春堂","丹药铺","准入：无","掌柜陈老 · 好感72"],["🏪 万宝阁","法器阁","准入：无","当季：火纹法刀三折"],["🕯️ 夜市暗巷","黑市入口","准入：引荐","子时开 · 血煞门眼线出没"],["🏛️ 拍卖行","年度跨域拍卖","准入：请帖/金丹","下月：玄天镜起拍"]],
+ "太虚宗":[["⛰️ 外门大殿","宗门事务","准入：外门弟子","月末外门考核"],["🌿 灵兽园","寄养契约兽","准入：杂役以上","寄养2/3"],["📚 藏经阁","功法借阅","准入：贡献度≥100","一层：凡品/灵品"],["⚔️ 论剑台","切磋较技","准入：无","外门大比 · 前十入内门"]]};
+let mapLv=0,mapDomain="zhongzhou",mapRegion="";
+function renderMap(){
+  if(mapLv===0){
+    $('#mapTitle').textContent='天玄灵图';$('#mapSub').textContent='第一层 · 七大修真域';
+    $('#mapBody').innerHTML=`
+    <svg id="mapSvg" viewBox="0 0 400 280">
+      ${LINKS.map(l=>{const a=DOMAINS[l[0]],b=DOMAINS[l[1]];
+        return `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="${l[2]}" stroke-width="${l[3]?1.6:1}" ${l[3]?'':'stroke-dasharray="4 4"'}/>`}).join('')}
+      ${DOMAINS.map(d=>`<g class="mnode ${d.k===mapDomain?'cur':''}" onclick="drill('${d.k}')">
+        <circle cx="${d.x}" cy="${d.y}" r="${d.r}"/>
+        <text x="${d.x}" y="${d.y+d.r+11}">${d.n}</text></g>`).join('')}
+      <text x="10" y="270" fill="#5d6878" font-size="9">当前：中州 · 太虚宗</text>
+    </svg>
+    <div class="legend2"><span>── 白线 安全商路</span><span>── 金线 需穿越妖兽区</span><span>── 红线 险地</span><span>╌ 虚线 上古传送阵(需激活)</span></div>
+    <p style="font-size:10px;color:var(--dim);margin-top:8px">点击任意域节点 → 进入州府灵图（区域种子属性：灵脉/妖兽/正魔/秘境/遗迹）</p>`;
+  }else if(mapLv===1){
+    const d=DOMAINS.find(x=>x.k===mapDomain);
+    $('#mapTitle').textContent='州府灵图 · '+d.n;$('#mapSub').textContent='第二层 · 灵脉与势力版图';
+    const regs=REGIONS[mapDomain]||[["荒原","待探明",.3,.3]];
+    $('#mapBody').innerHTML=`
+    <div class="panel" style="margin-bottom:10px;display:flex;gap:18px;flex-wrap:wrap;font-size:10px">
+      <span>地域加成：<b style="color:var(--gold)">${d.bonus}</b></span>
+      <span>灵脉浓度 ${(d.lm*100)|0}%</span><span>妖兽密度 ${(d.ya*100)|0}%</span>
+      <span>正魔比 ${(d.zm*100)|0}:${100-((d.zm*100)|0)}</span><span>秘境活跃 ${(d.mj*100)|0}%</span><span>遗迹密度 ${(d.yj*100)|0}%</span>
+    </div>`+regs.map(r=>`
+    <div class="regrow" onclick="drill2('${r[0]}')">
+      <div class="rn">📍 <b>${r[0]}</b><i>${r[1]}</i>
+        <div class="rumor">💬 ${r[0]==='后山禁地'?'夜有青光，似有上古禁制松动':'本地传闻更新于本月'}</div></div>
+      <div class="meter"><div class="l"><span>灵脉</span><span>${(r[2]*100)|0}%</span></div><div class="b"><i style="width:${r[2]*100}%"></i></div></div>
+      <div class="meter"><div class="l"><span>秘境</span><span>${(r[3]*100)|0}%</span></div><div class="b"><i style="width:${r[3]*100}%"></i></div></div>
+    </div>`).join('');
+  }else{
+    $('#mapTitle').textContent='街坊灵图 · '+mapRegion;$('#mapSub').textContent='第三层 · 具体场景';
+    const pls=PLACES[mapRegion]||[["❓ 未知之地","尚未探明","准入：—","—"]];
+    $('#mapBody').innerHTML=pls.map(p=>`
+      <div class="plrow"><div><b>${p[0]}</b><div class="rumor">${p[1]} · ${p[3]}</div></div>
+      <span class="acc pill ${p[2].includes('无')?'p-green':p[2].includes('请帖')?'p-red':'p-gold'}">${p[2]}</span></div>`).join('')+
+      `<p style="font-size:10px;color:var(--dim);margin-top:8px">可自由描述想去之处；「逛坊市/感应灵脉」会生成新地点与新传闻（八章·互动机制）</p>`;
+  }
+}
+function drill(k){mapDomain=k;mapLv=1;mapRegion='';renderMap()}
+function drill2(r){mapRegion=r;mapLv=2;renderMap()}
+function mapBack(){if(mapLv>0){mapLv--;renderMap()}else back()}}
+renderMap();
+
+/* ═══ 灵兽 ═══ */
+const BEASTS=[
+ ["🐍","青鳞蟒","一阶中品 · 契约3年","毒雾喷吐 · 协同缠绕",62],
+ ["🦅","云隼","一阶上品 · 契约1年","高空侦查 · 御风疾行",88]];
+$('#beastGrid').innerHTML=BEASTS.map(b=>`
+  <div class="beast"><div class="ic">${b[0]}</div>
+    <div class="info"><b>${b[1]}</b><br>${b[2]}<br>技能：${b[3]}
+      <div class="loyal"><i style="width:${b[4]}%"></i></div>忠诚 ${b[4]}%
+      <div style="display:flex;gap:6px;margin-top:8px">
+        <button class="btn" style="flex:1;padding:5px;border:1px solid var(--line);background:none;color:var(--ink);border-radius:6px;font-size:10px" onclick="toast('协同作战：本月斗法战力+3（demo）')">⚔️ 协同</button>
+        <button class="btn" style="flex:1;padding:5px;border:1px solid var(--line);background:none;color:var(--ink);border-radius:6px;font-size:10px" onclick="toast('喂食妖兽内丹×1 → 忠诚+5（demo）')">🍖 喂食</button>
+      </div></div></div>`).join('')+
+  `<div class="beast" style="opacity:.45;border-style:dashed"><div class="ic">❔</div>
+    <div class="info"><b>契约位 3/3</b><br>驯兽术 Lv.20 可解锁第三契约位<br><span style="font-size:9px">岭南百越 · 驱兽门有高阶契约术</span></div></div>`;
+
+/* ═══ 传承（十七章） ═══ */
+function inhConfirm(){
+  const n=$('#heirName').value.trim();
+  if(!n){toast('请输入继承者姓名');return}
+  $('#inhText').innerHTML=`寿元将尽，你于洞府中唤来<b style="color:var(--gold)">${n}</b>，将毕生所学倾囊相授。<br><br>
+  灯灭之时，道统不灭——继承者睁开双眼，识海中已多出一段不属于自己、却甘愿背负的记忆。<br><br>
+  <span style="font-size:11px;color:var(--dim)">继承：灵石 1,116 · 储物袋整袋（含本命法宝）· 心腹道缘·陈老 · 道基五成 · 功法心得六成</span>`;
+  $('#inhOv').classList.add('show');
+}
+</script>
+</body>
+</html>
