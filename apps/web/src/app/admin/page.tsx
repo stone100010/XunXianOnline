@@ -9,6 +9,35 @@ interface Stats {
   recent: { turnNo: number; actionKind: string; degraded: boolean; narrativeHead: string }[];
 }
 
+function PushPanel() {
+  const [info, setInfo] = useState<{ configured: boolean; count: number } | null>(null);
+  const [title, setTitle] = useState("🌌 天命之召");
+  const [body, setBody] = useState("新的一年已至，你的天命在等待抉择。");
+  const [msg, setMsg] = useState("");
+  async function load() { setInfo(await (await fetch("/api/admin/push")).json()); }
+  useEffect(() => { void load(); }, []);
+  async function send() {
+    const res = await fetch("/api/admin/push", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ title, body }),
+    });
+    const j = await res.json();
+    setMsg(j.configured === false ? "⚠️ 未配置 VAPID 密钥（.env）" : `已发送 ${j.sent}，失败清理 ${j.failed}`);
+    void load();
+  }
+  return (
+    <div style={{ marginTop: 8 }}>
+      <div style={{ fontSize: 12, color: "var(--ink-dim)" }}>
+        状态：{info?.configured ? "✅ VAPID 已配置" : "⚠️ 未配置"} ｜ 订阅数：{info?.count ?? 0}
+      </div>
+      <input value={title} onChange={(e) => setTitle(e.target.value)} style={{ width: "100%", marginTop: 8, background: "#0000", border: "1px solid var(--gold-dim)", borderRadius: 6, padding: 8, color: "var(--ink)" }} />
+      <input value={body} onChange={(e) => setBody(e.target.value)} style={{ width: "100%", marginTop: 6, background: "#0000", border: "1px solid var(--gold-dim)", borderRadius: 6, padding: 8, color: "var(--ink)" }} />
+      <button onClick={send} style={{ width: "100%", marginTop: 8, padding: 10, borderRadius: 6, border: 0, background: "var(--gold)", color: "#111", fontWeight: 600 }}>广播通知</button>
+      {msg && <div style={{ fontSize: 12, color: "var(--jade)", marginTop: 6 }}>{msg}</div>}
+    </div>
+  );
+}
+
 export default function AdminPage() {
   const [authed, setAuthed] = useState(false);
   const [password, setPassword] = useState("");
@@ -79,6 +108,11 @@ export default function AdminPage() {
             </div>
           ))}
         </div>
+      </div>
+
+      <div className="card">
+        <h2 style={{ color: "var(--gold)", fontSize: 15 }}>🔔 Web Push 广播</h2>
+        <PushPanel />
       </div>
 
       <div className="card">

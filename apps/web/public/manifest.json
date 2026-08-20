@@ -1,0 +1,14 @@
+{
+  "name": "寻仙 Online · 玄幻修仙模拟器",
+  "short_name": "寻仙",
+  "description": "单人月令回合制 · 开放世界修仙模拟器 · 天玄大陆",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0d1117",
+  "theme_color": "#0d1117",
+  "lang": "zh-CN",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}
