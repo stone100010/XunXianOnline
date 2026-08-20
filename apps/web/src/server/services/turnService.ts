@@ -132,8 +132,12 @@ export async function submitAction(
   const state = await requireState(archiveId);
   if (turnNo !== state.turnNo) throw new ServiceError(409, "回合号不匹配（请刷新后重试）");
 
-  const compass = await store.getCompass(archiveId, state.turnNo);
-  if (!compass) throw new ServiceError(409, "本月罗盘未生成");
+  let compass = await store.getCompass(archiveId, state.turnNo);
+  if (!compass) {
+    // 惰性生成（建角后未打开开局页直接行动的场景）
+    compass = generateCompass(compassCtxFor(state), createRng(monthSeed(archiveId, state.turnNo)));
+    await store.saveCompass(archiveId, state.turnNo, compass);
+  }
   const existing = await store.getTurnRecord(archiveId, state.turnNo);
   if (existing) throw new ServiceError(409, "本回合已结算，不可重复提交（防 SL）");
 
