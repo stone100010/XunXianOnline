@@ -6,3 +6,6 @@ export * from "./growth/index.js";
 export * from "./breakthrough/index.js";
 export * from "./compass/index.js";
 export * from "./character/index.js";
+export * from "./world/index.js";
+export * from "./actions/intent.js";
+export * from "./events/index.js";

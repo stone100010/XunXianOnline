@@ -10,6 +10,7 @@ interface CompassOpt {
 }
 interface TurnView {
   state: PlayerState; realmName: string; compass: CompassOpt[];
+  briefing?: { title: string; items: { text: string }[] }[];
 }
 interface Settlement {
   turnNo: number; narrative: string; degraded: boolean;
@@ -38,6 +39,7 @@ function GameInner() {
   const [settle, setSettle] = useState<Settlement | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [freeform, setFreeform] = useState("");
 
   const load = useCallback(async () => {
     if (!archiveId) return;
@@ -61,6 +63,20 @@ function GameInner() {
     const json = await res.json();
     setBusy(false);
     if (!res.ok) { setErr(json.error?.message ?? "结算失败"); return; }
+    setSettle(json);
+  }
+
+  async function actFreeform() {
+    if (busy || settle || freeform.trim().length < 2) return;
+    setBusy(true); setErr("");
+    const res = await fetch(`/api/archives/${archiveId}/turn/action`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ turnNo: view!.state.turnNo, freeform: freeform.trim() }),
+    });
+    const json = await res.json();
+    setBusy(false);
+    if (!res.ok) { setErr(json.error?.message ?? "天道未能理解你的意图"); return; }
     setSettle(json);
   }
 
@@ -98,6 +114,21 @@ function GameInner() {
         </div>
       </div>
 
+      {/* 天机简报 */}
+      {view.briefing && view.briefing.length > 0 && (
+        <div className="card">
+          <div style={{ textAlign: "center", color: "var(--gold)" }}>🔮【天机简报】</div>
+          {view.briefing.map((sec) => (
+            <div key={sec.title} style={{ marginTop: 8 }}>
+              <div style={{ fontSize: 13, color: "var(--gold)" }}>{sec.title}</div>
+              {sec.items.map((it, i) => (
+                <div key={i} style={{ fontSize: 12, color: "var(--ink-dim)", marginTop: 2 }}>- {it.text}</div>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* 结算面板 或 决策罗盘 */}
       {settle ? (
         <div className="card">
@@ -128,6 +159,18 @@ function GameInner() {
               <div>{o.idx}. {o.label}{o.riskFlag ? " ⚠️" : ""}{o.destinyFlag ? " 🌌" : ""}</div>
             </button>
           ))}
+          <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+            <input
+              value={freeform}
+              onChange={(e) => setFreeform(e.target.value)}
+              placeholder="🖋️ 或自由描述本月行动，无视以上选项…"
+              style={{ flex: 1, background: "#0000", border: "1px solid var(--gold-dim)", borderRadius: 6, padding: "8px 10px", color: "var(--ink)", fontSize: 13 }}
+            />
+            <button onClick={actFreeform} disabled={busy || freeform.trim().length < 2}
+              style={{ background: "#c8a24b33", color: "var(--gold)", border: "1px solid var(--gold)", borderRadius: 6, padding: "8px 12px" }}>
+              行动
+            </button>
+          </div>
         </div>
       )}
 

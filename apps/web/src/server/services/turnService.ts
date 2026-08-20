@@ -1,8 +1,9 @@
 // TurnService：回合处理管线（docs/02 §3）
 // 意图归一 → 引擎结算 → 罗盘生成 → LLM 叙事（先算后写/模板降级）→ 持久化
 import {
-  addCultivationExp, createRng, generateCompass, hashSeed, resolveCombat,
-  realmOfLevel, truePower, expToNextLevel,
+  addCultivationExp, buildBriefing, createRng, evolveWorld, expToNextLevel,
+  generateCompass, hashSeed, parseIntent, realmOfLevel, resolveCombat,
+  rollDomainSeeds, truePower,
 } from "@xunxian/engine";
 import type { CompassOption } from "@xunxian/engine";
 import type { PlayerState } from "@xunxian/shared";
@@ -81,6 +82,14 @@ export interface TurnView {
   state: PlayerState;
   realmName: string;
   compass: CompassOption[];
+  briefing: { title: string; items: { text: string }[] }[];
+}
+
+/** 天机简报：由存档种子+回合号确定性生成（同回合刷新不变化） */
+function briefingFor(archiveSeed: number, turnNo: number) {
+  const seeds = rollDomainSeeds(createRng(hashSeed(archiveSeed, "world")));
+  const events = evolveWorld(seeds, createRng(hashSeed(archiveSeed, "brief", turnNo)));
+  return buildBriefing(events);
 }
 
 /** GET /turn：本月开局视图（无罗盘则生成） */
@@ -92,7 +101,13 @@ export async function getTurnView(archiveId: string, deviceId: string): Promise<
     compass = generateCompass(compassCtxFor(state), createRng(monthSeed(archiveId, state.turnNo)));
     await store.saveCompass(archiveId, state.turnNo, compass);
   }
-  return { state, realmName: realmOfLevel(state.cultivation.level).name, compass };
+  const briefing = briefingFor(archiveSeedOf(archiveId), state.turnNo);
+  return { state, realmName: realmOfLevel(state.cultivation.level).name, compass, briefing };
+}
+
+/** 存档种子（v0：由 archiveId 派生；接入 DB 后读 archives.seed） */
+function archiveSeedOf(archiveId: string): number {
+  return hashSeed(archiveId, "seed");
 }
 
 export interface SettlementView {
@@ -108,9 +123,10 @@ export interface SettlementView {
   state: PlayerState;
 }
 
-/** POST /turn/action：提交行动（罗盘选项）→ 结算+叙事+落库 */
+/** POST /turn/action：提交行动（罗盘选项或自由描述）→ 结算+叙事+落库 */
 export async function submitAction(
-  archiveId: string, deviceId: string, turnNo: number, optionIdx: number,
+  archiveId: string, deviceId: string, turnNo: number,
+  input: { optionIdx?: number; freeform?: string },
 ): Promise<SettlementView> {
   await assertOwner(archiveId, deviceId);
   const state = await requireState(archiveId);
@@ -120,10 +136,29 @@ export async function submitAction(
   if (!compass) throw new ServiceError(409, "本月罗盘未生成");
   const existing = await store.getTurnRecord(archiveId, state.turnNo);
   if (existing) throw new ServiceError(409, "本回合已结算，不可重复提交（防 SL）");
-  const option = compass.find((o) => o.idx === optionIdx);
-  if (!option) throw new ServiceError(400, `选项 ${optionIdx} 不存在`);
 
   const rng = createRng(monthSeed(archiveId, state.turnNo));
+  let option: CompassOption;
+  if (input.freeform) {
+    // 意图解析层（docs/05 §5）：规则解析 → 低置信度拒绝并提示罗盘
+    const intent = parseIntent(input.freeform, rng);
+    if (intent.confidence < 0.4) {
+      throw new ServiceError(422, `天道难以理解你的意图（${intent.restatedAction.slice(0, 20)}…），请从决策罗盘中选择，或换一种更明确的描述`);
+    }
+    const kindMap: Record<string, CompassOption["kind"]> = {
+      cultivate: "biguan", seclude: "biguan", explore: "lishi", travel: "lishi",
+      trade: "baiyi", bargain: "baiyi", craft: "baiyi", social: "daoyuan", attack: "lishi",
+    };
+    option = {
+      idx: 0, kind: kindMap[intent.action] ?? "lishi",
+      label: `【自由行动】${intent.restatedAction}（${input.freeform.slice(0, 30)}）`,
+      payload: { type: "freeform", intent: intent.action, raw: input.freeform },
+      freshnessMonths: 1,
+    };
+  } else {
+    const optionIdx = input.optionIdx!;
+    option = compass.find((o) => o.idx === optionIdx) ?? (() => { throw new ServiceError(400, `选项 ${optionIdx} 不存在`); })();
+  }
   const outcome = settleAction(state, option, rng);
 
   // 应用结算（战斗失败的修为倒退在 resolvedCultivation 中统一处理）
@@ -143,7 +178,7 @@ export async function submitAction(
   await store.savePlayerState(archiveId, updated);
   await store.appendTurnRecord({
     archiveId, turnNo, seed: monthSeed(archiveId, turnNo),
-    actionKind: outcome.actionKind, actionInput: { optionIdx },
+    actionKind: outcome.actionKind, actionInput: { option: option.idx, label: option.label },
     engineDelta: { cultivationGain: outcome.cultivationGain, levelsGained: outcome.levelsGained },
     narrative: nar.narrative, modelMeta: nar.modelMeta,
   });
@@ -187,7 +222,10 @@ export async function nextMonth(archiveId: string, deviceId: string, turnNo: num
 
   const compass = generateCompass(compassCtxFor(updated), createRng(monthSeed(archiveId, updated.turnNo)));
   await store.saveCompass(archiveId, updated.turnNo, compass);
-  return { state: updated, realmName: realmOfLevel(updated.cultivation.level).name, compass };
+  return {
+    state: updated, realmName: realmOfLevel(updated.cultivation.level).name, compass,
+    briefing: briefingFor(archiveSeedOf(archiveId), updated.turnNo),
+  };
 }
 
 async function assertOwner(archiveId: string, deviceId: string) {
