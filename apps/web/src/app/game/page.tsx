@@ -39,6 +39,35 @@ function GameInner() {
   const [settle, setSettle] = useState<Settlement | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [tab, setTab] = useState<"month" | "market" | "bag">("month");
+  const [shelf, setShelf] = useState<{ tierName: string; items: { key: string; name: string; price: number; desc: string; grade: number }[]; discountRate: number } | null>(null);
+  const [bag, setBag] = useState<{ key: string; name: string; qty: number; category: string }[] | null>(null);
+  const [marketMsg, setMarketMsg] = useState("");
+
+  async function openMarket(tier: string) {
+    setMarketMsg("");
+    const res = await fetch(`/api/archives/${archiveId}/market?tier=${tier}`);
+    const json = await res.json();
+    if (!res.ok) { setMarketMsg(json.error?.message ?? "无法进入"); setShelf(null); return; }
+    setShelf(json.shelf);
+  }
+  async function openBag() {
+    const res = await fetch(`/api/archives/${archiveId}/market?what=inventory`);
+    const json = await res.json();
+    setBag(json.items ?? []);
+  }
+  async function purchase(itemKey: string, haggle: boolean) {
+    setMarketMsg("");
+    const res = await fetch(`/api/archives/${archiveId}/market`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ tier: "zhengshi", itemKey, bargain: haggle }),
+    });
+    const json = await res.json();
+    if (!res.ok) { setMarketMsg(json.error?.message ?? "交易失败"); return; }
+    setMarketMsg(json.message);
+    void load(); // 刷新钱包
+  }
   const [freeform, setFreeform] = useState("");
 
   const load = useCallback(async () => {
@@ -95,6 +124,10 @@ function GameInner() {
 
   if (!view) return <main><p style={{ marginTop: 40, textAlign: "center" }}>{err || "推演天机中…"}</p></main>;
   const s = view.state;
+  const tabBtn: React.CSSProperties = {
+    padding: "6px 10px", borderRadius: 6, border: "1px solid var(--gold-dim)",
+    background: "#0000", color: "var(--ink)", fontSize: 13,
+  };
 
   return (
     <main style={{ paddingBottom: 90 }}>
@@ -113,6 +146,53 @@ function GameInner() {
           <div>💎 灵石：下品 {s.currencies.low}</div>
         </div>
       </div>
+
+      {/* 页签 */}
+      <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+        {([["month", "🌙 本月"], ["market", "🏪 坊市"], ["bag", "🎒 背包"]] as const).map(([k, label]) => (
+          <button key={k} onClick={() => { setTab(k); if (k === "bag") void openBag(); if (k === "market" && !shelf) void openMarket("zhengshi"); }}
+            style={{ flex: 1, padding: 10, borderRadius: 8, border: tab === k ? "1px solid var(--gold)" : "1px solid var(--gold-dim)", background: tab === k ? "#c8a24b22" : "#0000", color: tab === k ? "var(--gold)" : "var(--ink-dim)", fontSize: 14 }}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "market" && (
+        <div className="card">
+          <div style={{ textAlign: "center", color: "var(--gold)" }}>🏪【{shelf?.tierName ?? "坊市"}】</div>
+          <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+            <button onClick={() => void openMarket("zhengshi")} style={tabBtn}>正市</button>
+            <button onClick={() => void openMarket("heishi")} style={tabBtn}>黑市</button>
+            <button onClick={() => void openMarket("miku")} style={tabBtn}>秘库</button>
+          </div>
+          {marketMsg && <p style={{ fontSize: 12, color: "var(--jade)", marginTop: 8 }}>{marketMsg}</p>}
+          {shelf?.items.map((it) => (
+            <div key={it.key} className="card" style={{ margin: "10px 0 0" }}>
+              <div style={{ fontSize: 14 }}><b>{it.name}</b> ｜ 💎 {it.price} 灵石 ｜ 品级 {it.grade}</div>
+              <div style={{ fontSize: 12, color: "var(--ink-dim)", marginTop: 4 }}>{it.desc}</div>
+              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                <button onClick={() => void purchase(it.key, false)} style={{ ...tabBtn, flex: 1 }}>直接购买</button>
+                <button onClick={() => void purchase(it.key, true)} style={{ ...tabBtn, flex: 1 }}>🤝 议价</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {tab === "bag" && (
+        <div className="card">
+          <div style={{ textAlign: "center", color: "var(--gold)" }}>🎒【储物袋】</div>
+          {bag && bag.length === 0 && <p style={{ fontSize: 13, color: "var(--ink-dim)", marginTop: 8 }}>空空如也。</p>}
+          {bag?.map((it) => (
+            <div key={it.key} style={{ display: "flex", justifyContent: "space-between", marginTop: 8, fontSize: 14 }}>
+              <span>{it.name}</span>
+              <span style={{ color: "var(--ink-dim)" }}>×{it.qty}｜{it.category}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {tab === "month" && (<>
 
       {/* 天机简报 */}
       {view.briefing && view.briefing.length > 0 && (
@@ -173,6 +253,7 @@ function GameInner() {
           </div>
         </div>
       )}
+      </>)}
 
       {err && <p style={{ color: "var(--cinnabar)", fontSize: 12, marginTop: 8, textAlign: "center" }}>{err}</p>}
 

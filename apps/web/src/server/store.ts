@@ -23,6 +23,14 @@ export interface TurnRecord {
   modelMeta: unknown;
 }
 
+export interface InventoryItem {
+  key: string;
+  name: string;
+  category: string;
+  qty: number;
+  acquiredTurn: number;
+}
+
 export interface GameStore {
   createArchive(meta: ArchiveMeta, state: PlayerState): Promise<void>;
   listArchives(deviceId: string): Promise<ArchiveMeta[]>;
@@ -35,6 +43,9 @@ export interface GameStore {
   saveCompass(archiveId: string, turnNo: number, options: CompassOption[]): Promise<void>;
   getTurnRecord(archiveId: string, turnNo: number): Promise<TurnRecord | null>;
   appendTurnRecord(record: TurnRecord): Promise<void>;
+  getInventory(archiveId: string): Promise<InventoryItem[]>;
+  addItem(archiveId: string, item: Omit<InventoryItem, "acquiredTurn">, turnNo: number): Promise<void>;
+  spendCurrency(archiveId: string, amount: number): Promise<boolean>;
 }
 
 class MemoryStore implements GameStore {
@@ -42,6 +53,7 @@ class MemoryStore implements GameStore {
   private states = new Map<string, PlayerState>();
   private compass = new Map<string, CompassOption[]>();
   private turns = new Map<string, TurnRecord>();
+  private inventory = new Map<string, InventoryItem[]>();
 
   async createArchive(meta: ArchiveMeta, state: PlayerState) {
     this.archives.set(meta.id, meta);
@@ -77,6 +89,24 @@ class MemoryStore implements GameStore {
   }
   async appendTurnRecord(record: TurnRecord) {
     this.turns.set(`${record.archiveId}:${record.turnNo}`, record);
+  }
+  async getInventory(archiveId: string) {
+    return this.inventory.get(archiveId) ?? [];
+  }
+  async addItem(archiveId: string, item: Omit<InventoryItem, "acquiredTurn">, turnNo: number) {
+    const list = this.inventory.get(archiveId) ?? [];
+    const existing = list.find((i) => i.key === item.key);
+    if (existing) existing.qty += item.qty;
+    else list.push({ ...item, acquiredTurn: turnNo });
+    this.inventory.set(archiveId, list);
+  }
+  async spendCurrency(archiveId: string, amount: number) {
+    const state = this.states.get(archiveId);
+    const balance = state?.currencies.low ?? 0;
+    if (!state || balance < amount) return false;
+    state.currencies = { ...state.currencies, low: balance - amount };
+    this.states.set(archiveId, state);
+    return true;
   }
 }
 
