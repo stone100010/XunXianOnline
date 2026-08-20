@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>寻仙 · 管理后台 v0.2.5（玩法设定增强）</title>
+<script src="lib/echarts.min.js"></script>
+<style>
+/* ═════ 寻仙 管理后台 v0.1.2 · 暗色 · ECharts 指标增强版 ═════
+   新增：Cohort 热力 / 流失节点 / 经济分解 / 数值平衡 / 告警中心 */
+:root{
+  --bg:#0b0f14;--bg2:#0e141b;--card:#121a23;--card2:#0f1620;
+  --line:#1f2a37;--line2:#2a3a4d;
+  --ink:#e8e3d5;--dim:#8d97a5;--faint:#5d6878;
+  --gold:#c8a24b;--gold-bg:rgba(200,162,75,.12);--gold-line:rgba(200,162,75,.35);
+  --blue:#5b8dd6;--jade:#3f9d7a;--red:#d05040;--purple:#9d7ede;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:radial-gradient(ellipse 120% 60% at 15% -10%,#151f2b 0%,var(--bg) 55%),var(--bg);
+  color:var(--ink);font-family:"system-ui","Microsoft YaHei",sans-serif;font-size:13px;min-height:100vh}
+button{font-family:inherit;cursor:pointer}
+::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-thumb{background:#2a3a4d;border-radius:3px}
+#app{display:grid;grid-template-columns:220px 1fr;min-height:100vh}
+#side{background:#0a0e13;border-right:1px solid var(--line);position:sticky;top:0;height:100vh;overflow-y:auto;z-index:50}
+#side .logo{padding:16px 14px 12px;color:var(--gold);font-weight:700;font-size:15px;letter-spacing:2px;font-family:"Noto Serif SC",serif}
+#side .logo small{display:block;color:var(--faint);font-size:10px;font-weight:400;margin-top:2px;letter-spacing:0}
+.group{padding:10px 14px 4px;font-size:10px;color:var(--faint);letter-spacing:2px}
+.nv{display:flex;align-items:center;gap:9px;padding:9px 12px;margin:1px 8px;border-radius:8px;color:var(--dim);font-size:13px;cursor:pointer;border:none;background:none;width:calc(100% - 16px);text-align:left;transition:.15s}
+.nv:hover{background:#131c27;color:var(--ink)}
+.nv.on{background:linear-gradient(90deg,rgba(200,162,75,.16),rgba(200,162,75,.04));color:var(--gold);box-shadow:inset 2px 0 0 var(--gold)}
+.nv .badge{margin-left:auto;background:var(--red);color:#fff;font-size:9px;border-radius:99px;padding:1px 6px}
+#side .foot{margin-top:auto;padding:14px;font-size:10px;color:var(--faint);border-top:1px solid var(--line)}
+#wrap{display:flex;flex-direction:column;min-width:0}
+#hd{position:sticky;top:0;z-index:20;background:rgba(11,15,20,.9);backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--line);padding:0 18px;height:54px;display:flex;align-items:center;gap:12px}
+#hd .crumb{font-weight:600;font-family:"Noto Serif SC",serif}
+#hd .crumb small{color:var(--dim);font-weight:400}
+#hd .search{flex:1;max-width:320px;margin-left:auto;height:34px;border:1px solid var(--line2);border-radius:9px;
+  background:var(--card2);display:flex;align-items:center;padding:0 12px;color:var(--faint);font-size:12px}
+.env{padding:3px 10px;border-radius:99px;font-size:11px;background:rgba(63,157,122,.14);color:var(--jade);border:1px solid rgba(63,157,122,.4)}
+#burger{display:none;border:1px solid var(--line2);background:var(--card2);color:var(--ink);border-radius:8px;width:34px;height:34px;font-size:15px}
+main{padding:16px 18px 84px;max-width:1280px;width:100%;margin:0 auto}
+section{display:none}section.on{display:block;animation:fade .3s}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}}
+h2{font-size:17px;margin-bottom:4px;font-family:"Noto Serif SC",serif;color:var(--gold)}
+h2 small{font-size:11px;color:var(--dim);font-weight:400;margin-left:10px;font-family:system-ui}
+.desc{color:var(--dim);font-size:12px;margin-bottom:14px}
+.grid{display:grid;gap:12px}
+.kpis{grid-template-columns:repeat(6,1fr)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.row3{display:grid;grid-template-columns:3fr 2fr;gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:14px}
+.kpi{position:relative;overflow:hidden}
+.kpi::after{content:"";position:absolute;right:-14px;top:-14px;width:60px;height:60px;border-radius:50%;background:radial-gradient(circle,rgba(200,162,75,.10),transparent 70%)}
+.kpi .l{font-size:11px;color:var(--dim)}.kpi .v{font-size:22px;font-weight:700;margin-top:5px;font-variant-numeric:tabular-nums;font-family:"Noto Serif SC",serif}
+.kpi .d{font-size:10px;margin-top:3px}.up{color:var(--jade)}.dn{color:var(--red)}
+.kpi.warn .v{color:var(--red)}
+.h3{font-size:13px;font-weight:600;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
+.h3 .more{font-size:11px;color:var(--blue);font-weight:400;cursor:pointer}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;color:var(--faint);font-weight:500;padding:8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:9px 8px;border-bottom:1px solid #151d27;vertical-align:middle}
+tbody tr:hover td{background:rgba(255,255,255,.025)}
+.pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:10px;white-space:nowrap}
+.p-green{background:rgba(63,157,122,.14);color:#6fc7a4}.p-gold{background:var(--gold-bg);color:var(--gold)}
+.p-red{background:rgba(208,80,64,.13);color:#e08a7d}.p-blue{background:rgba(91,141,214,.14);color:#8db2e8}
+.p-gray{background:rgba(255,255,255,.06);color:var(--dim)}
+.btn{border:1px solid var(--line2);background:var(--card2);color:var(--ink);border-radius:8px;padding:6px 14px;font-size:12px;transition:.15s}
+.btn:hover{border-color:var(--gold-line)}.btn.pri{background:linear-gradient(135deg,#d9b45f,#a97f2e);border:none;color:#151006;font-weight:600}
+.btn.mini{padding:3px 10px;font-size:11px}
+input,select{font-family:inherit;font-size:12px;border:1px solid var(--line2);border-radius:8px;padding:7px 10px;background:var(--card2);color:var(--ink);outline:none}
+input:focus,select:focus{border-color:var(--gold)}option{background:var(--card2)}
+.seg{display:inline-flex;border:1px solid var(--line2);border-radius:8px;overflow:hidden}
+.seg button{border:none;background:none;color:var(--dim);padding:5px 13px;font-size:11px}
+.seg button.on{background:var(--gold-bg);color:var(--gold)}
+.chart{width:100%;height:240px}
+.chart.tall{height:300px}
+#toast{position:fixed;left:50%;top:60px;transform:translateX(-50%) translateY(-8px);background:#060a0e;border:1px solid var(--gold);color:var(--gold);padding:9px 24px;border-radius:99px;font-size:12px;opacity:0;transition:.3s;z-index:90;pointer-events:none}
+#toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+/* 告警滚动 */
+.alerts{display:flex;gap:10px;overflow-x:auto;padding:2px 0 6px}
+.alert{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:9px;font-size:12px;cursor:pointer;border:1px solid;transition:.15s}
+.alert:hover{transform:translateY(-1px)}
+.alert.lv1{background:rgba(208,80,64,.12);border-color:rgba(208,80,64,.4);color:#e08a7d}
+.alert.lv2{background:var(--gold-bg);border-color:var(--gold-line);color:var(--gold)}
+.alert.lv3{background:rgba(91,141,214,.1);border-color:rgba(91,141,214,.35);color:#8db2e8}
+#tabbar{display:none}
+@media (max-width:880px){
+  #app{grid-template-columns:1fr}
+  #side{position:fixed;left:-240px;width:224px;transition:.25s}
+  #burger{display:block}#hd .search{display:none}
+  main{padding:12px 12px 78px}
+  .kpis{grid-template-columns:1fr 1fr 1fr}
+  .row2,.row3{grid-template-columns:1fr}
+  .chart{height:210px}
+  #tabbar{display:flex;position:fixed;bottom:0;left:0;right:0;background:rgba(10,14,19,.96);backdrop-filter:blur(10px);border-top:1px solid var(--line);z-index:40;padding:4px 0 calc(5px + env(safe-area-inset-bottom))}
+  #tabbar button{flex:1;border:none;background:none;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10px;color:var(--dim);padding:6px 0}
+  #tabbar button.on{color:var(--gold)}#tabbar button .ic{font-size:18px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <aside id="side">
+    <div class="logo">⚜️ 寻仙·后台<small>玄幻修仙模拟器 · v0.2.5 玩法设定</small></div>
+    <div class="group">运 营</div>
+    <button class="nv on" data-s="0" onclick="go(0,this)">📊 运营看板</button>
+    <button class="nv" data-s="1" onclick="go(1,this)">⚠️ 告警中心 <span class="badge" id="alBadge">4</span></button>
+    <button class="nv" data-s="2" onclick="go(2,this)">👥 玩家分层</button>
+    <button class="nv" data-s="3" onclick="go(3,this)">⚖️ 数值平衡</button>
+    <div class="group">其 他</div>
+    <button class="nv" data-s="4" onclick="go(4,this)">💰 经济监控</button>
+    <div class="group">玩法设定</div>
+    <button class="nv" data-s="8" onclick="go(8,this)">🎲 机缘活动</button>
+    <button class="nv" data-s="9" onclick="go(9,this)">🏪 坊市管理</button>
+    <button class="nv" data-s="10" onclick="go(10,this)">👤 NPC 池</button>
+    <button class="nv" data-s="11" onclick="go(11,this)">🐉 灵兽管理</button>
+    <button class="nv" data-s="12" onclick="go(12,this)">🗺️ 世界演化</button>
+    <button class="nv" data-s="5" onclick="go(5,this)">📜 主线剧本</button>
+    <button class="nv" data-s="6" onclick="go(6,this)">🤖 LLM 成本</button>
+    <button class="nv" data-s="7" onclick="go(7,this)">🌍 世界健康</button>
+    <div class="foot">admin@xunxian · 内网<br>PostgreSQL ● · GLM-5.2 ●</div>
+  </aside>
+  <div id="wrap">
+    <div id="hd">
+      <button id="burger" onclick="side.classList.toggle('open')">☰</button>
+      <div class="crumb" id="crumb">运营看板 <small>/ 指标总览</small></div>
+      <div class="search">🔍 搜索道果码 / 指标 / 剧本…</div>
+      <span class="env">● 生产</span>
+    </div>
+    <main>
+    <!-- ① 运营看板 -->
+    <section class="on">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <h2>运营看板<small>ECharts 指标总览</small></h2>
+        <div class="seg" id="rangeSeg">
+          <button class="on" onclick="setRange(0,this)">今日</button>
+          <button onclick="setRange(1,this)">7 日</button>
+          <button onclick="setRange(2,this)">30 日</button>
+        </div>
+      </div>
+      <div class="alerts" style="margin:8px 0 2px">
+        <div class="alert lv1" onclick="go(3)">🔴 渡劫成功率偏离理论 -11%（筑基点）</div>
+        <div class="alert lv1" onclick="go(4)">🔴 灵石净流入连续 9 日破健康线</div>
+        <div class="alert lv2" onclick="go(1)">🟡 32 名玩家 7 日未归（含 6 名金丹）</div>
+        <div class="alert lv3" onclick="go(6)">🔵 LLM 成本环比 +18%（自由输入占比上升）</div>
+      </div>
+      <div class="grid kpis">
+        <div class="card kpi"><div class="l">活跃设备</div><div class="v" id="k1">128</div><div class="d up">▲ 12%</div></div>
+        <div class="card kpi"><div class="l">新增仙途</div><div class="v" id="k2">37</div><div class="d up">▲ 8%</div></div>
+        <div class="card kpi"><div class="l">次日留存</div><div class="v" id="k3">43%</div><div class="d dn">▼ 2pt</div></div>
+        <div class="card kpi"><div class="l">人均回合/会话</div><div class="v" id="k4">6.4</div><div class="d">— 持平</div></div>
+        <div class="card kpi"><div class="l">LLM 日成本</div><div class="v" id="k5">¥86.2</div><div class="d dn">▲ 18%</div></div>
+        <div class="card kpi warn"><div class="l">叙事降级率</div><div class="v" id="k6">1.8%</div><div class="d dn">阈值 5%</div></div>
+      </div>
+      <div class="grid row3" style="margin-top:12px">
+        <div class="card"><div class="h3">DAU × LLM 成本（双轴）<span class="more" onclick="toast('导出（demo）')">导出</span></div><div class="chart" id="cDau"></div></div>
+        <div class="card"><div class="h3">周 Cohort 留存热力（建角周 × 活跃周）</div><div class="chart" id="cCohort"></div></div>
+      </div>
+      <div class="grid row3" style="margin-top:12px">
+        <div class="card"><div class="h3">流失节点 · 最后回合分布（渡劫月红标）</div><div class="chart" id="cChurn"></div></div>
+        <div class="card"><div class="h3">境界分布（在玩存档）</div><div class="chart" id="cRealm"></div></div>
+      </div>
+      <div class="card" style="margin-top:12px"><div class="h3">决策罗盘 · 选项类型选择占比（本月全服）</div><div class="chart" id="cCompass" style="height:210px"></div></div>
+    </section>
+
+    <!-- ② 告警中心 -->
+    <section>
+      <h2>告警中心<small>阈值触发 · 每条附建议动作 · 点击直达</small></h2>
+      <p class="desc">指标的价值在触发行动：所有阈值可在系统设置调整，触发后写入审计并可联动推送</p>
+      <div class="card" style="margin-bottom:12px;display:flex;gap:8px;align-items:center">
+        <select><option>全部等级</option><option>🔴 紧急</option><option>🟡 观察</option><option>🔵 提示</option></select>
+        <span class="pill p-red">紧急 2</span><span class="pill p-gold">观察 1</span><span class="pill p-blue">提示 1</span>
+        <button class="btn mini" style="margin-left:auto" onclick="toast('全部标记已读（demo）')">全部已读</button>
+      </div>
+      <div class="card">
+        <table>
+          <thead><tr><th>等级</th><th>指标</th><th>当前值</th><th>阈值</th><th>持续</th><th>建议动作</th><th>操作</th></tr></thead>
+          <tr><td><span class="pill p-red">🔴 紧急</span></td><td>筑基渡劫实际成功率</td><td><b style="color:var(--red)">59%</b></td><td>理论 70% ±5%</td><td>3 天</td><td>下调天劫威力或上调筑基丹掉率 → <a href="#" onclick="go(3);return false" style="color:var(--blue)">数值平衡</a></td><td><button class="btn mini" onclick="toast('已创建调优任务 #77')">建任务</button></td></tr>
+          <tr><td><span class="pill p-red">🔴 紧急</span></td><td>灵石净流入（产出-消耗）</td><td><b style="color:var(--red)">+38%</b></td><td>≤ +20%</td><td>9 天</td><td>秘境门票+500 / 洞府租金+15% → <a href="#" onclick="go(4);return false" style="color:var(--blue)">经济监控</a></td><td><button class="btn mini" onclick="toast('已创建调优任务 #78')">建任务</button></td></tr>
+          <tr><td><span class="pill p-gold">🟡 观察</span></td><td>高价值玩家流失</td><td><b>6 名金丹+</b></td><td>≤ 3 名/周</td><td>本周</td><td>推送「天命之召」唤醒分群 → <a href="#" onclick="toast('跳转推送中心（demo）');return false" style="color:var(--blue)">推送中心</a></td><td><button class="btn mini" onclick="toast('已加入唤醒分群')">分群</button></td></tr>
+          <tr><td><span class="pill p-blue">🔵 提示</span></td><td>LLM 日成本环比</td><td><b style="color:var(--gold)">+18%</b></td><td>≤ +15%</td><td>1 天</td><td>意图解析已路由 Air，检查自由输入平均长度</td><td><button class="btn mini" onclick="toast('已忽略 24h')">忽略</button></td></tr>
+        </table>
+      </div>
+    </section>
+
+    <!-- ③ 玩家分层 -->
+    <section>
+      <h2>玩家分层<small>生命周期 × 价值四象限 · 差异化运营</small></h2>
+      <p class="desc">按回合深度（游戏年）× 活跃度分层：新手引导 / 成长陪伴 / 核心深耕 / 沉睡唤醒 / 流失挽回</p>
+      <div class="grid row2">
+        <div class="card"><div class="h3">分层象限（横=活跃天数，纵=仙途年数，气泡=人数）</div><div class="chart tall" id="cScatter"></div></div>
+        <div class="card"><div class="h3">分层规模与策略</div>
+          <table>
+            <tr><td><span class="pill p-blue">新手（&lt;1年）</span></td><td><b>142</b></td><td>首次渡劫前推送引导事件</td><td><button class="btn mini" onclick="toast('策略已下发（demo）')">配置</button></td></tr>
+            <tr><td><span class="pill p-gold">成长（1-3年）</span></td><td><b>128</b></td><td>因缘保鲜期提醒 + 坊市定向折扣</td><td><button class="btn mini" onclick="toast('策略已下发（demo）')">配置</button></td></tr>
+            <tr><td><span class="pill p-green">核心（3年+/日活）</span></td><td><b>89</b></td><td>新剧本优先灰度 + 传承仪式感推送</td><td><button class="btn mini" onclick="toast('策略已下发（demo）')">配置</button></td></tr>
+            <tr><td><span class="pill p-gray">沉睡（7日未归）</span></td><td><b>32</b></td><td>「宿敌仍记得你」唤醒文案</td><td><button class="btn mini" onclick="toast('已加入唤醒分群')">唤醒</button></td></tr>
+            <tr><td><span class="pill p-red">流失（30日未归）</span></td><td><b>21</b></td><td>轮回转世优势召回（继承+30%）</td><td><button class="btn mini" onclick="toast('召回方案已生成')">召回</button></td></tr>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ④ 数值平衡 -->
+    <section>
+      <h2>数值平衡<small>实际 vs 理论 · 规则引擎的运行时监控</small></h2>
+      <p class="desc">闭环：引擎公式给出理论值 → 埋点收集实际分布 → 偏差超阈告警 → 后台调数值 → 下月生效复测</p>
+      <div class="grid row2">
+        <div class="card"><div class="h3">六大渡劫点 · 实际成功率 vs 理论</div><div class="chart" id="cTrib"></div></div>
+        <div class="card"><div class="h3">越级战斗 · 胜率实际分布 vs 理论曲线</div><div class="chart" id="cCombat"></div></div>
+      </div>
+      <div class="grid row2" style="margin-top:12px">
+        <div class="card"><div class="h3">失败惩罚档位触发分布（力竭/重伤/碾压）</div><div class="chart" id="cPunish"></div></div>
+        <div class="card"><div class="h3">命运骰子公平性 · 各面实际频率 vs 设计概率</div><div class="chart" id="cDice"></div></div>
+      </div>
+    </section>
+
+    <!-- ⑤ 经济监控 -->
+    <section>
+      <h2>经济监控<small>产出/消耗来源分解 · 通胀定位</small></h2>
+      <div class="grid row2">
+        <div class="card"><div class="h3">灵石产出 / 消耗（来源分解，堆叠面积）</div><div class="chart tall" id="cEcon"></div></div>
+        <div class="card"><div class="h3">灵石流向（本月 Sankey）</div><div class="chart tall" id="cSankey"></div></div>
+      </div>
+      <div class="card" style="margin-top:12px"><div class="h3">调控工具（联动数值管理）</div>
+        <table>
+          <tr><td>秘境门票</td><td>当前 0 💎</td><td><button class="btn mini" onclick="toast('已存草稿：门票 500')">调至 500</button></td></tr>
+          <tr><td>洞府租金</td><td>+0%</td><td><button class="btn mini" onclick="toast('已存草稿：租金 +15%')">+15%</button></td></tr>
+          <tr><td>拍卖行抽成</td><td>未启用</td><td><button class="btn mini" onclick="toast('已存草稿：抽成 8%')">启用 8%</button></td></tr>
+        </table>
+      </div>
+    </section>
+
+    <!-- ⑥ 主线剧本 -->
+    <section>
+      <h2>主线剧本<small>阶段漏斗 · 放弃点定位</small></h2>
+      <div class="card"><div class="h3">各主线阶段到达率（10 主线 × 6 阶段，行=主线）</div><div class="chart tall" id="cStory"></div></div>
+      <div class="grid row2" style="margin-top:12px">
+        <div class="card"><div class="h3">主线热度排行（游玩人数 / 平均等待年数）</div>
+          <table>
+            <tr><td>⑩ 我命由我</td><td><b>61</b> 人</td><td>平均等待 1.8 年</td><td><span class="pill p-green">最热</span></td></tr>
+            <tr><td>② 财可通神</td><td><b>52</b> 人</td><td>平均等待 1.2 年</td><td><span class="pill p-green">热</span></td></tr>
+            <tr><td>⑧ 宗门逆袭</td><td><b>48</b> 人</td><td>平均等待 2.4 年</td><td>—</td></tr>
+            <tr><td>① 圣体之路</td><td><b>37</b> 人</td><td>阶段 3 放弃率 31% ⚠️</td><td><span class="pill p-gold">观察</span></td></tr>
+            <tr><td>⑥ 红尘问道</td><td><b>18</b> 人</td><td>开局包选择率 4.4%</td><td><span class="pill p-gray">冷门</span></td></tr>
+          </table>
+        </div>
+        <div class="card"><div class="h3">「圣体之路」阶段 3 放弃原因抽样（LLM 归因）</div>
+          <table>
+            <tr><td>⚔️ 阶段 3 需筑基 21+ 才触发</td><td>卡境界 14 人</td><td><button class="btn mini" onclick="toast('建议：realmGate 下调至 18（demo）')">调门槛</button></td></tr>
+            <tr><td>🎲 圣体初劫判定成功率 55%</td><td>连败弃坑 9 人</td><td><button class="btn mini" onclick="toast('已存草稿：成功率 55→62%')">调判定</button></td></tr>
+            <tr><td>📜 剧情基调与预期不符</td><td>评低分 4 人</td><td><button class="btn mini" onclick="toast('已加入叙事评审队列')">评审</button></td></tr>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ⑦ LLM 成本 -->
+    <section>
+      <h2>LLM 成本<small>质量仪表盘 · 场景分解 · 版本对比</small></h2>
+      <div class="grid row2">
+        <div class="card"><div class="h3">降级率仪表盘（阈值 5%）</div><div class="chart" id="cGauge"></div></div>
+        <div class="card"><div class="h3">场景成本构成（今日）</div><div class="chart" id="cLlmCost"></div></div>
+      </div>
+      <div class="card" style="margin-top:12px"><div class="h3">Prompt 版本 A/B（v7 vs v8 · 灰度 10%）</div><div class="chart" id="cAB"></div></div>
+    </section>
+
+    <!-- ⑧ 世界健康 -->
+    <section>
+      <h2>世界健康<small>开放世界运转的独有指标</small></h2>
+      <div class="grid row2">
+        <div class="card"><div class="h3">NPC 池命中 / 简报回应 / 道缘活性趋势</div><div class="chart" id="cWorld"></div></div>
+        <div class="card"><div class="h3">七域活跃度（本月行动分布）</div><div class="chart" id="cDomain"></div></div>
+      </div>
+    </section>
+
+    <!-- ⑨ 机缘活动 -->
+    <section>
+      <h2>机缘活动管理<small>秘境/兽潮/拍卖 · 开启窗口与奖励池配置</small></h2>
+      <p class="desc">机缘是留存杠杆：配置开启概率、入口门槛、判定与奖励池，发布前走离线重放校验</p>
+      <div class="grid row2">
+        <div class="card"><div class="h3">本月活动日历（金=秘境 红=兽潮 蓝=拍卖）</div><div class="chart" id="cCal" style="height:200px"></div></div>
+        <div class="card"><div class="h3">秘境触发漏斗（出现→进入→通关→核心奖励）</div><div class="chart" id="cJiyu" style="height:200px"></div></div>
+      </div>
+      <div class="grid row2" style="margin-top:12px">
+        <div class="card"><div class="h3">奖励池分布（坠魔谷）</div><div class="chart" id="cDrop" style="height:210px"></div></div>
+        <div class="card">
+          <div class="h3">秘境参数配置<span class="pill p-gold">草稿 1</span></div>
+          <table>
+            <thead><tr><th>秘境</th><th>入口门槛</th><th>出现率</th><th>判定成功率</th><th>核心奖励</th><th>状态</th><th></th></tr></thead>
+            <tr><td><b>坠魔谷</b></td><td>炼气 11+</td><td><input value="60%" style="width:52px"></td><td><input value="55%" style="width:52px"></td><td>魔功残卷</td><td><span class="pill p-green">开启</span></td><td><button class="btn mini" onclick="toast('坠魔谷 已存草稿（下月生效）')">存草稿</button></td></tr>
+            <tr><td><b>古修士洞府</b></td><td>凡人 1+</td><td><input value="60%" style="width:52px"></td><td><input value="70%" style="width:52px"></td><td>古修储戒</td><td><span class="pill p-green">开启</span></td><td><button class="btn mini" onclick="toast('古修士洞府 已存草稿')">存草稿</button></td></tr>
+            <tr><td><b style="color:var(--gold)">九幽龙渊（新）</b></td><td>金丹 41+</td><td><input value="25%" style="width:52px"></td><td><input value="45%" style="width:52px"></td><td>龙血·契约灵兽</td><td><span class="pill p-gold">灰度 10%</span></td><td><button class="btn mini" onclick="toast('九幽龙渊 灰度已调整')">灰度</button></td></tr>
+            <tr><td><b>上古遗迹</b></td><td>筑基 21+</td><td>—</td><td>—</td><td>法则碎片</td><td><span class="pill p-gray">未开放</span></td><td><button class="btn mini" onclick="toast('上古遗迹 已排期下版本')">排期</button></td></tr>
+          </table>
+          <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
+            <button class="btn pri" onclick="toast('✅ 机缘配置已发布（新月生效）')">发布配置</button>
+            <span class="pill p-blue">本周机缘参与率 41% · 人均探索 1.8 次/月</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ⑩ 坊市管理 -->
+    <section>
+      <h2>坊市管理<small>三级交易网络 · 货架规则与物价运营</small></h2>
+      <div class="grid row2">
+        <div class="card">
+          <div class="h3">货架规则（分级）</div>
+          <table>
+            <thead><tr><th>市场</th><th>准入</th><th>件数</th><th>价格波动</th><th>议价空间</th><th>抽成</th><th></th></tr></thead>
+            <tr><td><b style="color:var(--gold)">正市</b></td><td>公开</td><td><input value="3-6" style="width:44px"></td><td><input value="±20%" style="width:52px"></td><td><input value="5%" style="width:44px"></td><td>0%</td><td><button class="btn mini" onclick="toast('正市规则已存草稿')">存草稿</button></td></tr>
+            <tr><td><b style="color:var(--red)">黑市</b></td><td>需引入</td><td><input value="3-6" style="width:44px"></td><td><input value="±35%" style="width:52px"></td><td><input value="30%" style="width:44px"></td><td>5%</td><td><button class="btn mini" onclick="toast('黑市规则已存草稿')">存草稿</button></td></tr>
+            <tr><td><b style="color:var(--blue)">秘库</b></td><td>金丹/核心弟子</td><td><input value="3-5" style="width:44px"></td><td><input value="±10%" style="width:52px"></td><td><input value="10%" style="width:44px"></td><td>贡献点制</td><td><button class="btn mini" onclick="toast('秘库规则已存草稿')">存草稿</button></td></tr>
+          </table>
+        </div>
+        <div class="card"><div class="h3">坊市收入构成（30 日 · 按市场）</div><div class="chart" id="cMarket" style="height:210px"></div></div>
+      </div>
+      <div class="grid row2" style="margin-top:12px">
+        <div class="card"><div class="h3">四类物品物价指数（30 日，基期=100）</div><div class="chart" id="cPrice"></div></div>
+        <div class="card">
+          <div class="h3">议价与滞销</div>
+          <table>
+            <tr><td>议价尝试率</td><td><b>38%</b>（黑市 71%）</td></tr>
+            <tr><td>议价成功率</td><td><b>64%</b> · 平均砍价 11%</td></tr>
+            <tr><td>滞销品 TOP</td><td>遁水符（30 日 0 售）→ <button class="btn mini" onclick="toast('已存草稿：遁水符下架')">下架</button></td></tr>
+            <tr><td>热销品 TOP</td><td>聚气丹（月售 412）→ <button class="btn mini" onclick="toast('已存草稿：聚气丹 +10% 价格')">提价</button></td></tr>
+            <tr><td>以物易物占比</td><td><b>12%</b>（黑市 31%）</td></tr>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ⑪ NPC 池 -->
+    <section>
+      <h2>NPC 池管理<small>池化复用 · 生成审核 · 生命周期</small></h2>
+      <p class="desc">设计原则：先相似度复用、无匹配才生成；池规模受控防膨胀（docs/02 决策）</p>
+      <div class="grid row2">
+        <div class="card"><div class="h3">池命中率趋势（复用/生成，健康 ≥75%）</div><div class="chart" id="cNpcHit"></div></div>
+        <div class="card"><div class="h3">NPC 职业分布（在世 1,842 位）</div><div class="chart" id="cNpcJob" style="height:210px"></div></div>
+      </div>
+      <div class="grid row2" style="margin-top:12px">
+        <div class="card">
+          <div class="h3">LLM 生成审核队列 <span class="pill p-gold">待审 5</span></div>
+          <table>
+            <thead><tr><th>姓名</th><th>职业/域</th><th>境界</th><th>性格</th><th>相似度</th><th>操作</th></tr></thead>
+            <tr><td><b>楚含烟</b></td><td>炼丹师 · 南明</td><td>筑基 24</td><td>重诺 · 痴丹</td><td>0.42</td><td><button class="btn mini" onclick="npcAudit(this,1)">通过</button> <button class="btn mini danger" onclick="npcAudit(this,0)">驳回</button></td></tr>
+            <tr><td><b>雷千钧</b></td><td>体修 · 东荒</td><td>金丹 46</td><td>豪爽 · 战狂</td><td>0.61</td><td><button class="btn mini" onclick="npcAudit(this,1)">通过</button> <button class="btn mini danger" onclick="npcAudit(this,0)">驳回</button></td></tr>
+            <tr><td><b>白鹭霜</b></td><td>符师 · 西极</td><td>炼气 18</td><td>谨慎 · 洁癖</td><td>0.38</td><td><button class="btn mini" onclick="npcAudit(this,1)">通过</button> <button class="btn mini danger" onclick="npcAudit(this,0)">驳回</button></td></tr>
+            <tr><td><b>侯九幽</b></td><td>掮客 · 北冥</td><td>筑基 31</td><td>狡黠 · 贪财</td><td>0.77 ⚠️</td><td><button class="btn mini" onclick="npcAudit(this,1)">通过</button> <button class="btn mini danger" onclick="npcAudit(this,0)">驳回</button></td></tr>
+            <tr><td><b>石敢当</b></td><td>散修 · 岭南</td><td>凡人 8</td><td>隐忍 · 朴实</td><td>0.55</td><td><button class="btn mini" onclick="npcAudit(this,1)">通过</button> <button class="btn mini danger" onclick="npcAudit(this,0)">驳回</button></td></tr>
+          </table>
+        </div>
+        <div class="card">
+          <div class="h3">生命周期与高相似模板</div>
+          <table>
+            <tr><td>池总量 / 上限</td><td><b>1,842</b> / 2,000 <span class="pill p-green">92%</span></td></tr>
+            <tr><td>在世 / 陨落 / 被夺舍</td><td><b>1,790</b> / 46 / 6</td></tr>
+            <tr><td>本月新生成 / 淘汰</td><td><b>31</b> / 12（相似度合并）</td></tr>
+            <tr><td>宿命大敌激活数</td><td><b>18</b> · 本月宿敌复仇事件 7 起</td></tr>
+            <tr><td>高相似模板 TOP</td><td>「东荒·散修·炼气」×214 → <button class="btn mini" onclick="toast('已执行模板合并（-38 冗余）')">合并</button></td></tr>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ⑫ 灵兽管理 -->
+    <section>
+      <h2>灵兽管理<small>种类平衡 · 孵化培育链路 · 契约消耗</small></h2>
+      <div class="grid row2">
+        <div class="card"><div class="h3">灵兽持有分布（气泡=持有率×战力贡献）</div><div class="chart" id="cBeast" style="height:230px"></div></div>
+        <div class="card"><div class="h3">培育链路漏斗（获蛋→孵化→成年→进化）</div><div class="chart" id="cBeastFun" style="height:230px"></div></div>
+      </div>
+      <div class="card" style="margin-top:12px">
+        <div class="h3">种类参数表</div>
+        <table>
+          <thead><tr><th>灵兽</th><th>品阶</th><th>捕捉/孵化率</th><th>饲料(月)</th><th>战力贡献</th><th>持有率</th><th>状态</th><th></th></tr></thead>
+          <tr><td>🔥 火羽鹰</td><td>二阶</td><td><input value="35%" style="width:52px"></td><td>80 灵石</td><td>+12%</td><td><b style="color:var(--red)">32%</b> ⚠️</td><td><span class="pill p-green">在池</span></td><td><button class="btn mini" onclick="toast('已存草稿：孵化率 35→28%')">平衡</button></td></tr>
+          <tr><td>🐺 赤目妖狼</td><td>一阶</td><td><input value="55%" style="width:52px"></td><td>40 灵石</td><td>+6%</td><td>24%</td><td><span class="pill p-green">在池</span></td><td><button class="btn mini" onclick="toast('赤目妖狼 已存草稿')">存草稿</button></td></tr>
+          <tr><td>🐍 青鳞蟒</td><td>二阶</td><td><input value="28%" style="width:52px"></td><td>100 灵石</td><td>+14%</td><td>11%</td><td><span class="pill p-green">在池</span></td><td><button class="btn mini" onclick="toast('青鳞蟒 已存草稿')">存草稿</button></td></tr>
+          <tr><td>🐉 幼蛟（新）</td><td>三阶</td><td><input value="8%" style="width:52px"></td><td>400 灵石</td><td>+22%</td><td>2%</td><td><span class="pill p-gold">灰度</span></td><td><button class="btn mini" onclick="toast('幼蛟 灰度已调整')">灰度</button></td></tr>
+        </table>
+      </div>
+    </section>
+
+    <!-- ⑬ 世界演化 -->
+    <section>
+      <h2>世界演化<small>七域种子调优 · 事件三层 · 势力关系</small></h2>
+      <div class="grid row2">
+        <div class="card">
+          <div class="h3">七域种子参数（滑条调优 · 新月生效）</div>
+          <table id="seedTbl"></table>
+          <div style="margin-top:8px"><button class="btn pri" onclick="toast('✅ 种子参数已发布（下月演化生效）')">发布种子</button>
+          <span class="pill p-blue">演化确定性：同种子可回放复现</span></div>
+        </div>
+        <div class="card"><div class="h3">演化事件三层分布（30 日）</div><div class="chart" id="cEvo" style="height:230px"></div></div>
+      </div>
+      <div class="card" style="margin-top:12px">
+        <div class="h3">势力关系网（本期快照 · 红=敌对 金=盟好 灰=中立 · 可拖拽缩放）</div>
+        <div class="chart" id="cForce" style="height:280px"></div>
+      </div>
+    </section>
+    </main>
+  </div>
+</div>
+<div id="toast"></div>
+<nav id="tabbar">
+  <button class="on" onclick="go(0,this)"><span class="ic">📊</span>看板</button>
+  <button onclick="go(1,this)"><span class="ic">⚠️</span>告警</button>
+  <button onclick="go(2,this)"><span class="ic">👥</span>分层</button>
+  <button onclick="go(3,this)"><span class="ic">⚖️</span>平衡</button>
+  <button onclick="side.classList.add('open')"><span class="ic">☰</span>更多</button>
+</nav>
+<script>
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const side=$('#side');
+let tt;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),2200)}
+function go(i,btn){
+  $$('section').forEach((s,k)=>s.classList.toggle('on',k===i));
+  const c=["运营看板 / 指标总览","运营 / 告警中心","运营 / 玩家分层","数值 / 平衡监控","数值 / 经济监控","内容 / 主线剧本","内容 / LLM 成本","内容 / 世界健康","玩法 / 机缘活动","玩法 / 坊市管理","玩法 / NPC 池","玩法 / 灵兽管理","玩法 / 世界演化"];
+  $('#crumb').innerHTML=c[i].replace(' / ',' <small>/</small> ');
+  $$('#side .nv').forEach(b=>b.classList.toggle('on',+b.dataset.s===i));
+  $$('#tabbar button').forEach((b,k)=>b.classList.toggle('on',k===Math.min(i,4)));
+  side.classList.remove('open');window.scrollTo(0,0);
+  setTimeout(resizeAll,60);
+}
+document.addEventListener('click',e=>{if(side.classList.contains('open')&&!side.contains(e.target)&&!e.target.closest('#burger'))side.classList.remove('open')});
+
+/* ═══════════ ECharts 全局暗色主题 ═══════════ */
+const T={color:['#c8a24b','#5b8dd6','#3f9d7a','#d05040','#9d7ede','#e8c877'],
+  textStyle:{color:'#8d97a5',fontFamily:'system-ui'},
+  title:{textStyle:{color:'#e8e3d5',fontSize:13}},
+  legend:{textStyle:{color:'#8d97a5',fontSize:10},itemWidth:14,itemHeight:8},
+  tooltip:{backgroundColor:'#060a0e',borderColor:'rgba(200,162,75,.35)',textStyle:{color:'#e8e3d5',fontSize:11}},
+  xAxis:{axisLine:{lineStyle:{color:'#2a3a4d'}},axisLabel:{color:'#5d6878',fontSize:10},splitLine:{lineStyle:{color:'rgba(255,255,255,.04)'}}},
+  yAxis:{axisLine:{show:false},axisLabel:{color:'#5d6878',fontSize:10},splitLine:{lineStyle:{color:'rgba(255,255,255,.05)'}}}};
+const charts={};
+function mk(id,opt){const el=document.getElementById(id);if(!el)return;
+  if(!charts[id])charts[id]=echarts.init(el,null,{renderer:'canvas'});
+  charts[id].setOption(echarts.util.merge(echarts.util.clone(T),opt,true));}
+function resizeAll(){Object.values(charts).forEach(c=>c.resize())}
+window.addEventListener('resize',resizeAll);
+
+/* ① DAU×成本（范围联动） */
+const DAU={
+ 0:{x:['00','04','08','10','12','14','16','18','20','22'],dau:[6,4,18,42,58,52,64,48,36,20],cost:[2.1,1.2,8.4,18.2,24.1,21.8,26.4,19.6,14.8,8.2]},
+ 1:{x:['周三','周四','周五','周六','周日','周一','周二'],dau:[88,96,104,142,128,92,96],cost:[58,64,72,98,86,61,64]},
+ 2:{x:Array.from({length:10},(_,i)=>'W'+(i+21)),dau:[62,70,66,78,84,80,92,88,96,104],cost:[42,48,45,54,58,55,64,61,68,72]}};
+function drawDau(i){
+  const d=DAU[i];
+  mk('cDau',{tooltip:{trigger:'axis'},legend:{data:['DAU','LLM成本(¥)'],top:0},
+    grid:{left:36,right:40,top:30,bottom:24},
+    xAxis:{type:'category',data:d.x},
+    yAxis:[{type:'value'},{type:'value',splitLine:{show:false}}],
+    series:[{name:'DAU',type:'line',smooth:true,data:d.dau,areaStyle:{color:'rgba(91,141,214,.12)'}},
+      {name:'LLM成本(¥)',type:'line',yAxisIndex:1,smooth:true,data:d.cost,itemStyle:{color:'#c8a24b'},lineStyle:{type:'dashed'}}]});
+}
+function setRange(i,btn){$$('#rangeSeg button').forEach(b=>b.classList.remove('on'));btn.classList.add('on');
+  drawDau(i);const K=[['128','37','43%','6.4','¥86.2','1.8%'],['96','284','41%','5.9','¥512.0','1.6%'],['412','1,207','43%','6.1','¥2,140','1.7%']][i];
+  ['k1','k2','k3','k4','k5','k6'].forEach((id,k)=>$('#'+id).textContent=K[k]);toast('已切换时间范围')}
+
+/* ① Cohort 热力 */
+const weeks=['W1','W2','W3','W4','W5','W6'];
+const cohortData=[];
+const coh=[[100,62,48,41,36,33],[100,66,52,45,39,0],[100,71,55,0,0,0],[100,68,0,0,0,0],[100,0,0,0,0,0]];
+coh.forEach((row,i)=>row.forEach((v,j)=>{if(v>0)cohortData.push([j,i,v])}));
+mk('cCohort',{tooltip:{formatter:p=>`${weeks[p.value[0]]} 建角 cohort<br>第 ${p.value[0]+1} 周留存：${p.value[2]}%`},
+  grid:{left:70,right:60,top:10,bottom:40},
+  xAxis:{type:'category',data:['第1周','第2周','第3周','第4周','第5周','第6周']},
+  yAxis:{type:'category',data:weeks.map(w=>w+' 建角').reverse()},
+  visualMap:{min:20,max:100,calculable:false,orient:'vertical',right:0,top:20,itemHeight:80,
+    textStyle:{color:'#5d6878',fontSize:9},inRange:{color:['#1a2430','#8a6d2f','#c8a24b','#e8c877']}},
+  series:[{type:'heatmap',data:cohortData.map(([x,y,v])=>[x,coh.length-1-y,v]),
+    label:{show:true,color:'#e8e3d5',fontSize:9,formatter:p=>p.value[2]+'%'},
+    itemStyle:{borderColor:'#0b0f14',borderWidth:2}}]});
+
+/* ① 流失节点直方 */
+mk('cChurn',{tooltip:{trigger:'axis'},grid:{left:36,right:20,top:26,bottom:40},
+  xAxis:{type:'category',data:['第1月','2','3','6','9','12','13','15','18','24','30','36','48+'],
+    axisLabel:{rotate:38}},
+  yAxis:{type:'value',name:'流失人数'},
+  series:[{type:'bar',data:[21,9,6,8,7,{value:26,itemStyle:{color:'#d05040'}},{value:18,itemStyle:{color:'#d05040'}},9,7,11,6,8,5],
+    itemStyle:{color:'#5b8dd6',borderRadius:[3,3,0,0]},
+    markLine:{data:[{yAxis:15,name:'均值',lineStyle:{color:'#c8a24b',type:'dashed'},label:{color:'#c8a24b'}}]}}],
+  graphic:[{type:'text',right:14,top:2,style:{text:'红柱=渡劫后首月（12/15月）',fill:'#d05040',fontSize:10}}]});
+
+/* ① 境界分布 */
+mk('cRealm',{tooltip:{},grid:{left:36,right:20,top:16,bottom:24},
+  xAxis:{type:'category',data:['凡人','炼气','筑基','金丹','元婴','化神+']},
+  yAxis:{type:'value'},
+  series:[{type:'bar',data:[142,114,61,26,10,4],
+    itemStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'#e8c877'},{offset:1,color:'#8a6d2f'}]),borderRadius:[4,4,0,0]},
+    label:{show:true,position:'top',color:'#8d97a5',fontSize:10}}]});
+
+/* ① 罗盘占比 */
+mk('cCompass',{tooltip:{trigger:'item'},legend:{bottom:0,type:'scroll'},
+  series:[{type:'pie',radius:['38%','62%'],center:['50%','44%'],
+    data:[{name:'命途推进',value:22},{name:'因缘际会',value:18},{name:'历练探索',value:26},
+      {name:'道缘经营',value:12},{name:'修仙百艺',value:10},{name:'闭关修持',value:7},{name:'自由输入',value:5}],
+    label:{color:'#8d97a5',fontSize:10,formatter:'{b}\n{d}%'},
+    itemStyle:{borderColor:'#0b0f14',borderWidth:2}}]});
+
+/* ③ 分层散点 */
+const sc=[];
+[[30,0.3,60],[18,0.6,38],[26,1.5,45],[40,2.2,61],[22,3.1,33],[16,4.8,21],[9,6.5,12],[5,9.2,7],[12,1.1,20],[28,5.5,40],[8,2.8,9],[19,7.8,16]].forEach(d=>sc.push(d));
+mk('cScatter',{tooltip:{formatter:p=>`活跃 ${p.value[0]} 天 · 仙途 ${p.value[1]} 年 · ${p.value[2]} 人`},
+  grid:{left:40,right:24,top:30,bottom:44},
+  xAxis:{name:'活跃天数',nameTextStyle:{color:'#5d6878'},max:32},
+  yAxis:{name:'仙途年数',nameTextStyle:{color:'#5d6878'}},
+  series:[{type:'scatter',data:sc,symbolSize:v=>Math.sqrt(v[2])*3.2,
+    itemStyle:{color:'rgba(200,162,75,.55)',borderColor:'#c8a24b'},
+    markArea:{silent:true,itemStyle:{color:'rgba(63,157,122,.05)'},
+      data:[[{xAxis:16,yAxis:3},{xAxis:32,yAxis:12}]]},
+    markLine:{silent:true,symbol:'none',lineStyle:{color:'#2a3a4d'},
+      data:[{xAxis:7,label:{formatter:'沉睡线 7 天',color:'#5d6878',fontSize:9}},{yAxis:3,label:{formatter:'核心线 3 年',color:'#5d6878',fontSize:9}}]}}],
+  graphic:[{type:'text',right:16,bottom:40,style:{text:'绿区=核心深耕（活跃>16天 & 年数>3）',fill:'#3f9d7a',fontSize:10}}]});
+
+/* ④ 渡劫成功率 实际vs理论 */
+mk('cTrib',{tooltip:{trigger:'axis'},legend:{data:['理论成功率','实际成功率'],top:0},
+  grid:{left:40,right:20,top:34,bottom:40},
+  xAxis:{type:'category',data:['10→11\n引气','20→21\n筑基','40→41\n结丹','60→61\n破婴','80→81\n法则','95→96\n飞升'],axisLabel:{interval:0,fontSize:9}},
+  yAxis:{type:'value',min:20,max:100,axisLabel:{formatter:'{value}%'}},
+  series:[{name:'理论成功率',type:'bar',data:[90,70,60,50,40,35],itemStyle:{color:'rgba(91,141,214,.35)'},barGap:'-60%'},
+    {name:'实际成功率',type:'line',data:[88,59,58,47,41,33],symbol:'circle',symbolSize:8,
+      itemStyle:{color:(p)=>p.dataIndex===1?'#d05040':'#c8a24b'},lineStyle:{color:'#c8a24b'},
+      markPoint:{data:[{coord:[1,59],value:'-11%',itemStyle:{color:'#d05040'}}]}}]});
+
+/* ④ 战斗胜率分布 */
+mk('cCombat',{tooltip:{trigger:'axis'},legend:{data:['实际胜率','理论胜率'],top:0},
+  grid:{left:44,right:20,top:34,bottom:34},
+  xAxis:{type:'value',min:0,max:4,name:'战力差距档',nameTextStyle:{color:'#5d6878'}},
+  yAxis:{type:'value',min:0,max:1,axisLabel:{formatter:v=>Math.round(v*100)+'%'}},
+  series:[{name:'理论胜率',type:'line',smooth:true,data:[[0,.5],[1,.35],[2,.22],[3,.12],[4,.07]],lineStyle:{type:'dashed',color:'#5b8dd6'},itemStyle:{color:'#5b8dd6'}},
+    {name:'实际胜率',type:'scatter',data:[[0,.52],[1,.36],[2,.24],[3,.19],[4,.09]],symbolSize:10,itemStyle:{color:'#c8a24b'}}],
+  graphic:[{type:'text',right:14,top:24,style:{text:'越 3 档实际 19% > 理论 12%：蓄力槽偏强',fill:'#d05040',fontSize:10}}]});
+
+/* ④ 惩罚档位 */
+mk('cPunish',{tooltip:{trigger:'axis'},legend:{data:['力竭被擒','重伤落败','被碾压击杀'],top:0},
+  grid:{left:40,right:20,top:32,bottom:34},
+  xAxis:{type:'category',data:['切磋','生死仇杀','妖兽','自卫']},
+  yAxis:{type:'value'},
+  series:[{name:'力竭被擒',type:'bar',stack:'p',data:[120,86,140,22],itemStyle:{color:'#5b8dd6'}},
+    {name:'重伤落败',type:'bar',stack:'p',data:[38,142,64,31],itemStyle:{color:'#c8a24b'}},
+    {name:'被碾压击杀',type:'bar',stack:'p',data:[2,58,12,9],itemStyle:{color:'#d05040'}}]});
+
+/* ④ 骰子公平性 */
+mk('cDice',{tooltip:{trigger:'axis'},grid:{left:44,right:20,top:26,bottom:44},
+  xAxis:{type:'category',data:['⚡天赐','🌟鸿运','🍀机缘','⚖️中规','🌫️波折','💨时运','💀天意'],axisLabel:{fontSize:9,interval:0}},
+  yAxis:{type:'value',axisLabel:{formatter:'{value}%'}},
+  series:[{name:'设计概率',type:'bar',data:[8,12,20,20,20,12,8],itemStyle:{color:'rgba(91,141,214,.35)'},barGap:'-55%'},
+    {name:'实际频率',type:'line',data:[8.3,11.8,20.4,19.6,19.9,12.2,7.8],symbol:'circle',itemStyle:{color:'#c8a24b'},lineStyle:{color:'#c8a24b'}}],
+  legend:{data:['设计概率','实际频率'],top:0}});
+
+/* ⑤ 经济堆叠 */
+mk('cEcon',{tooltip:{trigger:'axis'},legend:{data:['秘境产出','百艺收入','任务/掉落','坊市消耗','洞府租金','炼制消耗'],top:0,type:'scroll'},
+  grid:{left:50,right:20,top:40,bottom:28},
+  xAxis:{type:'category',data:['6月','7月','8月','9月','10月','11月','12月','1月','2月']},
+  yAxis:{type:'value',name:'万灵石'},
+  series:[
+    {name:'秘境产出',type:'line',stack:'in',areaStyle:{opacity:.5},data:[8,9,12,11,14,16,15,18,21],smooth:true},
+    {name:'百艺收入',type:'line',stack:'in',areaStyle:{opacity:.5},data:[4,5,5,6,7,7,8,9,10],smooth:true},
+    {name:'任务/掉落',type:'line',stack:'in',areaStyle:{opacity:.5},data:[3,3,4,4,5,5,6,6,7],smooth:true},
+    {name:'坊市消耗',type:'line',stack:'out',areaStyle:{opacity:.4},data:[6,7,8,8,9,10,11,12,13],smooth:true,itemStyle:{color:'#d05040'}},
+    {name:'洞府租金',type:'line',stack:'out',areaStyle:{opacity:.4},data:[2,2,2,3,3,3,4,4,4],smooth:true,itemStyle:{color:'#9d7ede'}},
+    {name:'炼制消耗',type:'line',stack:'out',areaStyle:{opacity:.4},data:[1,1,2,2,2,3,3,3,4],smooth:true,itemStyle:{color:'#e08a7d'}}]});
+
+/* ⑤ Sankey */
+mk('cSankey',{tooltip:{trigger:'item'},
+  series:[{type:'sankey',left:10,right:110,top:10,bottom:10,nodeWidth:10,nodeGap:10,
+    label:{color:'#8d97a5',fontSize:10},lineStyle:{color:'gradient',curveness:.5,opacity:.35},
+    data:[{name:'秘境'},{name:'百艺'},{name:'任务'},{name:'玩家钱包'},{name:'坊市'},{name:'洞府'},{name:'炼制'},{name:'沉淀'}],
+    links:[{source:'秘境',target:'玩家钱包',value:21},{source:'百艺',target:'玩家钱包',value:10},
+      {source:'任务',target:'玩家钱包',value:7},{source:'玩家钱包',target:'坊市',value:13},
+      {source:'玩家钱包',target:'洞府',value:4},
+      {source:'玩家钱包',target:'炼制',value:4},{source:'玩家钱包',target:'沉淀',value:17}]}]});
+
+/* ⑥ 主线阶段漏斗（横向百分比堆叠） */
+const SL=['圣体','财通','血脉','逆境','再证','红尘','丹道','宗门','百兵','我命'];
+const reach=[[100,72,49,31,12,4],[100,80,61,44,22,8],[100,68,42,25,9,2],[100,75,54,36,15,5],
+  [100,82,66,50,31,10],[100,61,39,22,8,2],[100,77,56,38,17,6],[100,79,58,41,20,7],
+  [100,64,40,24,10,3],[100,85,70,53,30,14]];
+mk('cStory',{tooltip:{position:'top'},grid:{left:52,right:16,top:8,bottom:26},
+  xAxis:{type:'value',axisLabel:{formatter:'{value}%'}},
+  yAxis:{type:'category',data:SL,inverse:true,axisLabel:{color:'#8d97a5',fontSize:10}},
+  series:[1,2,3,4,5,6].map((st,i)=>({name:'阶段'+st,type:'bar',stack:'s',
+    data:reach.map(r=>r[i]),itemStyle:{color:'rgba(200,162,75,'+(0.95-i*0.14)+')'},
+    barWidth:12,label:{show:i===5,position:'right',color:'#8d97a5',fontSize:9,formatter:p=>p.value+'%'}})),
+  legend:{show:false}});
+
+/* ⑦ 降级仪表盘 */
+mk('cGauge',{series:[{type:'gauge',min:0,max:10,startAngle:210,endAngle:-30,
+  progress:{show:true,width:12,itemStyle:{color:'#c8a24b'}},
+  axisLine:{lineStyle:{width:12,color:[[0.5,'rgba(63,157,122,.5)'],[1,'rgba(208,80,64,.5)']]}},
+  axisTick:{show:false},splitLine:{length:8,lineStyle:{color:'#2a3a4d'}},
+  axisLabel:{color:'#5d6878',distance:16,fontSize:9,formatter:v=>v+'%'},
+  pointer:{itemStyle:{color:'#c8a24b'},width:3},
+  detail:{valueAnimation:true,formatter:'{value}%',color:'#e8e3d5',fontSize:26,offsetCenter:[0,'62%']},
+  title:{offsetCenter:[0,'92%'],color:'#8d97a5',fontSize:11},
+  data:[{value:1.8,name:'今日降级率（阈值 5%）'}]}]});
+
+/* ⑦ 场景成本 */
+mk('cLlmCost',{tooltip:{trigger:'item'},legend:{bottom:0},
+  series:[{type:'pie',radius:['40%','66%'],center:['50%','46%'],
+    data:[{name:'主叙事 ¥62.1',value:62.1},{name:'意图解析 ¥12.8',value:12.8},
+      {name:'NPC 生成 ¥9.0',value:9},{name:'终章回顾 ¥2.3',value:2.3}],
+    label:{color:'#8d97a5',fontSize:10,formatter:'{b}\n{d}%'},
+    itemStyle:{borderColor:'#0b0f14',borderWidth:2}}]});
+
+/* ⑦ A/B 对比 */
+mk('cAB',{tooltip:{trigger:'axis'},legend:{data:['v7（当前）','v8（灰度10%）'],top:0},
+  grid:{left:44,right:20,top:34,bottom:28},
+  xAxis:{type:'category',data:['降级率','均长(百字)','P95延迟(s)','人工评分','成本/次(分)']},
+  yAxis:{type:'value',max:100,axisLabel:{formatter:'{value}'}},
+  series:[{name:'v7（当前）',type:'bar',data:[36,61,53,72,44],itemStyle:{color:'rgba(91,141,214,.5)'}},
+    {name:'v8（灰度10%）',type:'bar',data:[28,68,58,81,47],itemStyle:{color:'rgba(200,162,75,.6)'}}]});
+
+/* ⑧ 世界健康趋势 */
+mk('cWorld',{tooltip:{trigger:'axis'},legend:{data:['NPC池命中率','简报回应率','道缘活性'],top:0},
+  grid:{left:40,right:20,top:34,bottom:28},
+  xAxis:{type:'category',data:['7月','','','','8月','','','本周']},
+  yAxis:{type:'value',min:20,max:100,axisLabel:{formatter:'{value}%'}},
+  series:[{name:'NPC池命中率',type:'line',smooth:true,data:[78,80,79,82,81,83,84,83]},
+    {name:'简报回应率',type:'line',smooth:true,data:[28,29,31,30,32,33,34,34],itemStyle:{color:'#5b8dd6'}},
+    {name:'道缘活性',type:'line',smooth:true,data:[52,55,53,58,60,59,63,61],itemStyle:{color:'#3f9d7a'}}]});
+
+/* ⑧ 七域活跃 */
+mk('cDomain',{tooltip:{},legend:{bottom:0,type:'scroll'},
+  radar:{indicator:[{name:'中州',max:100},{name:'东荒',max:100},{name:'南明',max:100},
+    {name:'西极',max:100},{name:'北冥',max:100},{name:'岭南',max:100},{name:'海外',max:100}],
+    center:['50%','46%'],radius:'62%',
+    axisName:{color:'#8d97a5',fontSize:10},splitLine:{lineStyle:{color:'#1f2a37'}},
+    splitArea:{areaStyle:{color:['rgba(255,255,255,.015)','rgba(255,255,255,.03)']}}},
+  series:[{type:'radar',data:[
+    {name:'本月行动占比',value:[86,64,58,52,48,40,36],areaStyle:{opacity:.3}},
+    {name:'上月',value:[82,60,55,50,46,38,33],lineStyle:{type:'dashed',color:'#5b8dd6'},areaStyle:{opacity:0}}]}]});
+
+
+/* ═══ v0.2.5 玩法设定模块 ═══════ */
+/* ⑨ 机缘日历 */
+(function(){
+const CAL={1:'gold',4:'gold',7:'red',9:'blue',12:'gold',15:'red',18:'gold',21:'blue',24:'gold',27:'gold'};
+const CC={gold:'#c8a24b',red:'#d05040',blue:'#5b8dd6',none:'rgba(255,255,255,.05)'};
+const data=[];for(let d=1;d<=30;d++)data.push([(d-1)%7,Math.floor((d-1)/7),d,CAL[d]||'none']);
+mk('cCal',{grid:{left:34,right:14,top:6,bottom:22},
+ xAxis:{type:'category',data:['一','二','三','四','五','六','日']},
+ yAxis:{type:'category',data:['第1周','第2周','第3周','第4周','第5周']},
+ series:[{type:'custom',renderItem:(params,api)=>{
+   const start=api.coord([api.value(0),api.value(1)]),size=api.size([1,1]);
+   return {type:'rect',shape:{x:start[0]-size[0]/2+3,y:start[1]-size[1]/2+4,width:size[0]-6,height:size[1]-8,r:4},
+     style:{fill:CC[api.value(3)]},textContent:{style:{text:''+api.value(2),fill:'#e8e3d5',fontSize:9}},textConfig:{position:'inside'}};
+ },data}]});
+})();
+
+/* ⑨ 机缘漏斗 */
+mk('cJiyu',{series:[{type:'funnel',left:'8%',right:'8%',top:8,bottom:6,minSize:'22%',
+ label:{color:'#e8e3d5',fontSize:11,formatter:'{b} {c}%'},
+ data:[{value:100,name:'罗盘出现',itemStyle:{color:'rgba(91,141,214,.5)'}},
+  {value:64,name:'选择进入',itemStyle:{color:'rgba(200,162,75,.45)'}},
+  {value:38,name:'通关离场',itemStyle:{color:'rgba(200,162,75,.7)'}},
+  {value:11,name:'获核心奖励',itemStyle:{color:'#c8a24b'}}]}]});
+
+/* ⑨ 奖励池玫瑰图 */
+mk('cDrop',{tooltip:{trigger:'item'},legend:{bottom:0,type:'scroll'},
+ series:[{type:'pie',radius:['30%','64%'],center:['50%','44%'],roseType:'radius',
+  data:[{name:'魔晶',value:34},{name:'灵石',value:26},{name:'功法残卷',value:14},
+   {name:'法器',value:12},{name:'丹药',value:9},{name:'空手',value:5}],
+  label:{color:'#8d97a5',fontSize:10,formatter:'{b} {d}%'},itemStyle:{borderColor:'#0b0f14',borderWidth:2}}]});
+
+/* ⑩ 坊市收入构成 */
+mk('cMarket',{tooltip:{trigger:'axis'},legend:{data:['正市','黑市','秘库'],top:0},
+ grid:{left:44,right:16,top:30,bottom:24},
+ xAxis:{type:'category',data:['W1','W2','W3','W4']},yAxis:{type:'value',name:'万灵石'},
+ series:[{name:'正市',type:'bar',stack:'m',data:[3.2,3.5,3.1,3.8],itemStyle:{color:'#c8a24b'}},
+  {name:'黑市',type:'bar',stack:'m',data:[1.2,1.4,1.1,1.6],itemStyle:{color:'#d05040'}},
+  {name:'秘库',type:'bar',stack:'m',data:[0.6,0.8,0.7,0.9],itemStyle:{color:'#5b8dd6'}}]});
+
+/* ⑩ 物价指数 */
+mk('cPrice',{tooltip:{trigger:'axis'},legend:{top:0},grid:{left:40,right:16,top:30,bottom:24},
+ xAxis:{type:'category',data:['D1','D4','D7','D10','D13','D16','D19','D22','D25','D28']},
+ yAxis:{type:'value',min:80,max:150},
+ series:[{name:'聚气丹',type:'line',data:[100,102,104,109,112,115,118,121,124,126],symbol:'none',smooth:true},
+  {name:'筑基丹',type:'line',data:[100,99,101,100,102,101,103,102,104,103],symbol:'none',smooth:true},
+  {name:'妖兽内丹',type:'line',data:[100,104,108,115,121,126,130,134,139,142],symbol:'none',smooth:true},
+  {name:'法器',type:'line',data:[100,98,97,96,97,95,96,94,95,94],symbol:'none',smooth:true}]});
+
+/* ⑪ NPC 命中率 */
+mk('cNpcHit',{tooltip:{trigger:'axis'},legend:{data:['复用命中','新生成'],top:0},
+ grid:{left:40,right:16,top:30,bottom:24},
+ xAxis:{type:'category',data:['6月','','','','7月','','','','本周']},
+ yAxis:{type:'value',max:100,axisLabel:{formatter:'{value}%'}},
+ series:[{name:'复用命中',type:'line',smooth:true,data:[74,75,77,76,79,80,81,82,83],
+   areaStyle:{color:'rgba(63,157,122,.15)'},itemStyle:{color:'#3f9d7a'}},
+  {name:'新生成',type:'line',smooth:true,data:[26,25,23,24,21,20,19,18,17],
+   itemStyle:{color:'#d05040'},lineStyle:{type:'dashed'}}]});
+
+/* ⑪ NPC 职业 */
+mk('cNpcJob',{tooltip:{trigger:'item'},
+ legend:{type:'scroll',orient:'vertical',right:0,top:'middle',itemGap:4,textStyle:{fontSize:9,color:'#8d97a5'}},
+ series:[{type:'pie',radius:['28%','58%'],center:['32%','50%'],
+  data:[{name:'散修',value:486},{name:'炼丹师',value:232},{name:'剑修',value:198},{name:'炼器师',value:176},
+   {name:'符师',value:152},{name:'商贾',value:148},{name:'宗门执事',value:141},{name:'体修',value:132},
+   {name:'灵植夫',value:98},{name:'掮客',value:79}],
+  label:{show:false},itemStyle:{borderColor:'#0b0f14',borderWidth:2}}]});
+
+/* ⑪ 审核交互 */
+function npcAudit(btn,ok){
+ const tr=btn.closest('tr');tr.style.opacity=ok?'1':'0.35';
+ tr.querySelectorAll('button').forEach(b=>b.disabled=true);
+ toast(ok?'✅ 已通过并入池（下月可被剧情复用）':'已驳回（计入相似模板避免重复生成）');
+}
+
+/* ⑫ 灵兽气泡 */
+mk('cBeast',{tooltip:{formatter:p=>p.data[3]+'<br/>持有 '+p.data[0]+'% · 战力贡献 +'+p.data[1]+'% · 品阶'+p.data[2]},
+ grid:{left:44,right:24,top:26,bottom:40},
+ xAxis:{name:'持有率%',nameTextStyle:{color:'#5d6878'},max:36},
+ yAxis:{name:'战力贡献+',nameTextStyle:{color:'#5d6878'},max:26},
+ series:[{type:'scatter',symbolSize:v=>Math.max(12,v[0]*1.4),
+  data:[[32,12,2,'🔥 火羽鹰'],[24,6,1,'🐺 赤目妖狼'],[11,14,2,'🐍 青鳞蟒'],[2,22,3,'🐉 幼蛟'],[8,9,1,'🦉 夜枭'],[5,18,2,'🐢 玄龟']],
+  itemStyle:{color:'rgba(200,162,75,.5)',borderColor:'#c8a24b'},
+  label:{show:true,formatter:p=>p.data[3].slice(2,6),position:'top',color:'#8d97a5',fontSize:9}}],
+ graphic:[{type:'text',right:14,top:2,style:{text:'火羽鹰持有率 32% 偏高',fill:'#d05040',fontSize:10}}]});
+
+/* ⑫ 培育漏斗 */
+mk('cBeastFun',{series:[{type:'funnel',left:'10%',right:'8%',top:8,bottom:6,minSize:'26%',gap:3,
+ label:{color:'#e8e3d5',fontSize:11},
+ data:[{value:640,name:'获得兽蛋',itemStyle:{color:'rgba(91,141,214,.45)'}},
+  {value:412,name:'孵化 65%',itemStyle:{color:'rgba(200,162,75,.4)'}},
+  {value:288,name:'成年 70%',itemStyle:{color:'rgba(200,162,75,.65)'}},
+  {value:61,name:'进化 21%',itemStyle:{color:'#c8a24b'}}]}]});
+
+/* ⑬ 七域种子滑条表 */
+(function(){
+const SEEDS=[['中州',72,38,55,64],['东荒',44,86,48,52],['南明',68,42,51,47],['西极',52,36,58,66],
+ ['北冥',58,44,46,41],['岭南',47,62,53,58],['海外',64,40,72,81]];
+const NAMES=['','灵脉','妖兽','秘境','遗迹'];
+document.getElementById('seedTbl').innerHTML=
+ '<thead><tr><th>域</th><th>灵脉</th><th>妖兽</th><th>秘境</th><th>遗迹</th></tr></thead><tbody>'+
+ SEEDS.map(r=>'<tr><td><b>'+r[0]+'</b></td>'+[1,2,3,4].map(i=>
+  '<td><input type="range" class="slider" min="0" max="100" value="'+r[i]+'" style="width:72px" '+
+  'onchange="toast(\''+r[0]+'·'+NAMES[i]+' 已调整（新月生效）\')"></td>').join('')+'</tr>').join('')+'</tbody>';
+})();
+
+/* ⑬ 演化三层 */
+mk('cEvo',{tooltip:{trigger:'axis'},legend:{data:['表闻','中变','底流'],top:0},
+ grid:{left:40,right:16,top:30,bottom:24},
+ xAxis:{type:'category',data:['D1','D4','D7','D10','D13','D16','D19','D22','D25','D28']},
+ yAxis:{type:'value',name:'事件数/日'},
+ series:[{name:'表闻',type:'bar',stack:'e',data:[86,92,78,95,88,102,96,110,104,98],itemStyle:{color:'rgba(91,141,214,.6)'}},
+  {name:'中变',type:'bar',stack:'e',data:[9,12,8,14,11,16,13,18,15,12],itemStyle:{color:'rgba(200,162,75,.7)'}},
+  {name:'底流',type:'line',data:[1,0,2,1,1,2,1,3,2,1],itemStyle:{color:'#d05040'},symbol:'circle'}]});
+
+/* ⑬ 势力关系图 */
+mk('cForce',{series:[{type:'graph',layout:'none',roam:true,symbol:'circle',symbolSize:38,
+ label:{show:true,color:'#e8e3d5',fontSize:10},edgeSymbol:['none','arrow'],edgeSymbolSize:6,
+ data:[{name:'太虚宗',x:300,y:120,itemStyle:{color:'#3f9d7a'}},
+  {name:'天剑宗',x:120,y:220,itemStyle:{color:'#3f9d7a'}},
+  {name:'丹盟',x:480,y:200,itemStyle:{color:'#c8a24b'}},
+  {name:'玄阴殿',x:380,y:330,itemStyle:{color:'#d05040'}},
+  {name:'血煞门',x:180,y:400,itemStyle:{color:'#d05040'}},
+  {name:'散修盟',x:560,y:400,itemStyle:{color:'#5b8dd6'}},
+  {name:'大夏仙朝',x:640,y:140,itemStyle:{color:'#9d7ede'}}],
+ links:[{source:'太虚宗',target:'玄阴殿',lineStyle:{color:'#d05040',width:2}},
+  {source:'太虚宗',target:'天剑宗',lineStyle:{color:'#c8a24b',width:2}},
+  {source:'丹盟',target:'太虚宗',lineStyle:{color:'#c8a24b',width:1.5}},
+  {source:'血煞门',target:'天剑宗',lineStyle:{color:'#d05040',width:2}},
+  {source:'玄阴殿',target:'血煞门',lineStyle:{color:'#d05040',width:1.5}},
+  {source:'大夏仙朝',target:'太虚宗',lineStyle:{color:'#9d7ede',width:1.5}},
+  {source:'散修盟',target:'丹盟',lineStyle:{color:'#5b8dd6',width:1.5}}]}]});
+
+/* 初始化 */
+drawDau(0);
+setRange(0,$$('#rangeSeg button')[0]);
+setTimeout(resizeAll,120);
+</script>
+</body>
+</html>
