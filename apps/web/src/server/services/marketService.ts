@@ -1,8 +1,9 @@
 // MarketService：坊市货架查看与交易（docs/16 设定·十六章）
 import { bargain, canEnterMarket, createRng, hashSeed, rollShelf } from "@xunxian/engine";
-import type { MarketShelf, MarketTier } from "@xunxian/engine";
+import type { MarketItem, MarketShelf, MarketTier } from "@xunxian/engine";
 import { store } from "../store.js";
 import { ServiceError } from "./archiveService.js";
+import { activeItems } from "./refItemsService.js";
 
 async function requireOwned(archiveId: string, deviceId: string) {
   const archive = await store.findArchive(archiveId);
@@ -20,7 +21,22 @@ export async function getShelf(archiveId: string, deviceId: string, tier: Market
     throw new ServiceError(403, "修为不足，无法进入宗门秘库（需金丹期或核心弟子引荐）");
   }
   const rng = createRng(hashSeed(archiveId, "market", tier, state.turnNo));
-  return rollShelf(tier, archiveId, rng);
+  const shelf = rollShelf(tier, archiveId, rng);
+  // 数值表热更：以 DB 启用物品重排货架（空表回退引擎基线）
+  const items: MarketItem[] = await activeItems();
+  if (items.length > 0) {
+    const pool = items.filter((it) => {
+      if (tier === "heishi") return true;
+      if (tier === "miku") return it.price >= 500;
+      return it.price <= 1000;
+    });
+    const count = rng.int(3, 7);
+    shelf.items = rng.shuffle(pool).slice(0, count).map((it) => ({
+      ...it,
+      price: Math.max(1, Math.round(it.price * (0.8 + rng.next() * 0.4))),
+    }));
+  }
+  return shelf;
 }
 
 export interface TradeOutput {

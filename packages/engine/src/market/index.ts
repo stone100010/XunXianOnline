@@ -19,8 +19,8 @@ export interface MarketShelf {
   items: MarketItem[];
 }
 
-// 物品基表（ref_items 的代码基线，入库后由管理后台扩充）
-const BASE_ITEMS: MarketItem[] = [
+// 物品基表（ref_items 的代码基线，入库后由管理后台扩充；marketService 优先读 DB）
+export const BASE_ITEMS: MarketItem[] = [
   { key: "juqi_dan", name: "聚气丹", category: "dan", price: 20, grade: 1, desc: "辅助炼气修炼，加速真元凝聚" },
   { key: "qingxin_dan", name: "清心丹", category: "dan", price: 35, grade: 1, desc: "稳定道心，抵抗心魔侵扰" },
   { key: "liaoshang_dan", name: "疗伤丹", category: "dan", price: 50, grade: 2, desc: "修复伤势，缩短休养期" },
