@@ -58,6 +58,12 @@ pnpm build            # 构建
 
 P1 地基 → P2 规则引擎 → P3 核心循环 → P4 LLM 层 → P5 主线内容 → P6 子系统 → P7 管理后台 → P8 打磨 → P9 交付
 
+**当前进度**：P1/P2 完成（rng/combat/growth/breakthrough/compass/character/world/events/market/npc 十大引擎模块，76+ 单测）；P3 核心循环可玩（建角→罗盘→行动→结算→下月全流程，含道果码存档/恢复、防 SL）；P4 LLM 层骨架就绪（供应商抽象+模板降级，接 key 即启用真实叙事）；P6 坊市/背包/天机简报/自由输入已上线。
+
+```bash
+pnpm install && pnpm dev   # http://localhost:3000 即可开玩
+```
+
 ## License
 
 MIT
