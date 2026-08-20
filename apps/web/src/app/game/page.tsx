@@ -58,6 +58,18 @@ function GameInner() {
     setShelf(json.shelf);
   }
   const [npcList, setNpcList] = useState<{ name: string; profession: string; realmLevel: number; traits: string[]; goal: string; intimacy: number; tierName: string }[] | null>(null);
+  const [btResult, setBtResult] = useState<{ success: boolean; rate: number; narrative: string; realmName: string } | null>(null);
+  const [btBusy, setBtBusy] = useState(false);
+  async function attemptBreakthrough() {
+    if (btBusy || settle) return;
+    setBtBusy(true); setErr("");
+    const res = await fetch(`/api/archives/${archiveId}/breakthrough`, { method: "POST" });
+    const json = await res.json();
+    setBtBusy(false);
+    if (!res.ok) { setErr(json.error?.message ?? "渡劫失败"); return; }
+    setBtResult(json);
+    void load();
+  }
   const [history, setHistory] = useState<{ turnNo: number; actionKind: string; narrative: string }[] | null>(null);
   async function openHistory() {
     const res = await fetch(`/api/archives/${archiveId}/history`);
@@ -342,6 +354,22 @@ function GameInner() {
               <div>{o.idx}. {o.label}{o.riskFlag ? " ⚠️" : ""}{o.destinyFlag ? " 🌌" : ""}</div>
             </button>
           ))}
+          {[10, 20, 40, 60, 80, 95].includes(s.cultivation.level) && s.cultivation.exp >= 50 && !btResult && (
+            <button onClick={attemptBreakthrough} disabled={btBusy}
+              style={{ width: "100%", marginTop: 12, padding: 12, borderRadius: 8, border: "1px solid var(--cinnabar)", background: "#c0392b22", color: "var(--cinnabar)", fontSize: 15, fontWeight: 700 }}>
+              {btBusy ? "天劫降临中…" : "⚡ 修为满溢，发起渡劫（境界突破）"}
+            </button>
+          )}
+          {btResult && (
+            <div className="card" style={{ marginTop: 12, borderColor: btResult.success ? "var(--jade)" : "var(--cinnabar)" }}>
+              <div style={{ textAlign: "center", fontSize: 15, fontWeight: 700, color: btResult.success ? "var(--jade)" : "var(--cinnabar)" }}>
+                {btResult.success ? "✨ 渡劫成功" : "💀 渡劫失败"}
+                <span style={{ fontSize: 12, color: "var(--ink-dim)" }}>｜成功率 {Math.round(btResult.rate * 100)}%</span>
+              </div>
+              <div style={{ marginTop: 8, fontSize: 13, lineHeight: 1.8 }}>{btResult.narrative}</div>
+              <div style={{ marginTop: 6, fontSize: 12, color: "var(--gold)" }}>当前境界：{btResult.realmName}</div>
+            </div>
+          )}
           <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
             <input
               value={freeform}
